@@ -1,0 +1,6 @@
+.output/
+.wxt/
+.wxt-scaffold/
+node_modules/
+pnpm-lock.yaml
+spec.md

@@ -1,0 +1,9 @@
+node_modules/
+.output/
+.wxt/
+.wxt-scaffold/
+coverage/
+playwright-report/
+test-results/
+*.log
+.DS_Store
