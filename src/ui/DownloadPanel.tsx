@@ -30,7 +30,7 @@ export function DownloadPanel({
   if (tasks.length === 0) return null;
 
   return (
-    <section className="border-t border-slate-200 px-4 py-3">
+    <section className="shrink-0 border-t border-slate-200 px-4 py-3">
       <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
         下载任务
       </h2>

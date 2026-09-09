@@ -49,7 +49,7 @@ export function Popup() {
         setAuthorized(hasPermission);
         setMessage(
           hasPermission
-            ? '站点已授权，可打开下载侧栏'
+            ? '站点已授权，课程内容页会自动打开侧栏'
             : '需要授权访问当前 Blackboard 站点',
         );
       });
@@ -111,7 +111,7 @@ export function Popup() {
         className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         onClick={enable}
       >
-        {busy ? '正在打开…' : authorized ? '打开下载侧栏' : '授权并启用'}
+        {busy ? '正在打开…' : authorized ? '重新打开侧栏' : '授权并启用'}
       </button>
 
       <p className="mt-3 text-center text-[11px] leading-4 text-slate-400">

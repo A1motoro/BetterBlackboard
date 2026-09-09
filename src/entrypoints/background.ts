@@ -35,6 +35,23 @@ async function requireAuthorizedOrigin(origin: string): Promise<void> {
     throw new BbError('access_denied', '尚未授权此 Blackboard 站点');
 }
 
+async function ensureContentScriptRegistered(origin: string): Promise<void> {
+  const registered = await browser.scripting.getRegisteredContentScripts({
+    ids: [CONTENT_SCRIPT_ID],
+  });
+  if (registered.length > 0) return;
+
+  await browser.scripting.registerContentScripts([
+    {
+      id: CONTENT_SCRIPT_ID,
+      matches: [`${origin}/*`],
+      js: [CONTENT_SCRIPT_FILE],
+      runAt: 'document_idle',
+      persistAcrossSessions: true,
+    },
+  ]);
+}
+
 async function injectContentScript(
   tabId: number,
   origin: string,
@@ -45,30 +62,39 @@ async function injectContentScript(
     throw new BbError('access_denied', '当前标签页与授权站点不匹配');
   }
 
-  const registered = await browser.scripting.getRegisteredContentScripts({
-    ids: [CONTENT_SCRIPT_ID],
-  });
-  if (registered.length === 0) {
-    await browser.scripting.registerContentScripts([
-      {
-        id: CONTENT_SCRIPT_ID,
-        matches: [`${origin}/*`],
-        js: [CONTENT_SCRIPT_FILE],
-        runAt: 'document_idle',
-        persistAcrossSessions: true,
-      },
-    ]);
-  }
-
+  await ensureContentScriptRegistered(origin);
   await browser.scripting.executeScript({
     target: { tabId },
     files: [CONTENT_SCRIPT_FILE],
   });
 }
 
+async function activateAuthorizedSite(): Promise<void> {
+  const authorized = await browser.permissions.contains({
+    origins: [CUHKSZ_PERMISSION],
+  });
+  if (!authorized) return;
+
+  await ensureContentScriptRegistered(CUHKSZ_ORIGIN);
+  const tabs = await browser.tabs.query({ url: [CUHKSZ_PERMISSION] });
+  await Promise.all(
+    tabs
+      .filter((tab) => tab.id !== undefined)
+      .map((tab) =>
+        browser.scripting
+          .executeScript({
+            target: { tabId: tab.id! },
+            files: [CONTENT_SCRIPT_FILE],
+          })
+          .catch(() => undefined),
+      ),
+  );
+}
+
 export default defineBackground(() => {
   const queue = new PersistentDownloadQueue();
   const ready = queue.init();
+  void activateAuthorizedSite();
 
   // WebExtension listeners may resolve asynchronously with a response.
   browser.runtime.onMessage.addListener(

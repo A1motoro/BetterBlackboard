@@ -98,12 +98,20 @@ function errorMessage(error: unknown): string {
   return '加载 Blackboard 内容时发生未知错误';
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  onCollapsedChange?: (collapsed: boolean) => void;
+}
+
+export function Sidebar({ onCollapsedChange }: SidebarProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const context = useMemo(
     () => parseCourseContext(new URL(window.location.href)),
     [],
   );
+
+  useEffect(() => {
+    onCollapsedChange?.(state.collapsed);
+  }, [onCollapsedChange, state.collapsed]);
 
   useEffect(() => {
     const listener = (message: unknown) => {
@@ -233,8 +241,8 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed top-4 right-4 flex max-h-[calc(100vh-2rem)] w-[390px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
-      <header className="flex items-start gap-3 bg-slate-950 px-4 py-3 text-white">
+    <aside className="fixed top-4 right-4 flex h-[calc(100vh-2rem)] w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
+      <header className="flex shrink-0 items-start gap-3 bg-slate-950 px-4 py-3 text-white">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-indigo-300">
             Better Blackboard
@@ -254,7 +262,7 @@ export function Sidebar() {
       </header>
 
       {state.loading && (
-        <div className="space-y-3 p-4">
+        <div className="min-h-0 flex-1 space-y-3 p-4">
           <div className="h-4 animate-pulse rounded bg-slate-200" />
           <div className="h-4 w-4/5 animate-pulse rounded bg-slate-200" />
           <div className="h-4 w-3/5 animate-pulse rounded bg-slate-200" />
@@ -262,14 +270,16 @@ export function Sidebar() {
       )}
 
       {state.error && (
-        <div className="m-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          {state.error}
+        <div className="min-h-0 flex-1 p-4">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {state.error}
+          </div>
         </div>
       )}
 
       {!state.loading && !state.error && (
-        <>
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <button
               type="button"
               className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
@@ -302,7 +312,7 @@ export function Sidebar() {
               </p>
             )}
           </div>
-          <div className="border-t border-slate-200 p-3">
+          <div className="shrink-0 border-t border-slate-200 p-3">
             <button
               type="button"
               disabled={state.selected.size === 0}
@@ -312,7 +322,7 @@ export function Sidebar() {
               下载所选文件
             </button>
           </div>
-        </>
+        </div>
       )}
 
       <DownloadPanel
