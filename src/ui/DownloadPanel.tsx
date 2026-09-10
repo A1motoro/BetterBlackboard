@@ -1,3 +1,4 @@
+import { visibleDownloadError } from '../core/download-status';
 import type { DownloadTask } from '../core/types';
 
 function formatBytes(value: number): string {
@@ -43,6 +44,7 @@ export function DownloadPanel({
           const canCancel = ['queued', 'starting', 'in_progress'].includes(
             task.status,
           );
+          const error = visibleDownloadError(task);
 
           return (
             <article key={task.taskId} className="rounded-lg bg-slate-50 p-2.5">
@@ -88,9 +90,9 @@ export function DownloadPanel({
                   }}
                 />
               </div>
-              {task.error && (
+              {error && (
                 <p className="mt-1.5 break-words text-[11px] text-red-600">
-                  {task.error}
+                  {error}
                 </p>
               )}
             </article>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { attachmentKey, collectAttachmentKeys } from '../core/download-plan';
+import { attachmentKey } from '../core/download-plan';
 import type { ContentNode } from '../core/types';
 
 interface SelectionCheckboxProps {
@@ -37,20 +37,25 @@ function SelectionCheckbox({
 
 interface ContentTreeProps {
   nodes: ContentNode[];
+  keyIndex: ReadonlyMap<ContentNode, string[]>;
   selected: ReadonlySet<string>;
   onToggle: (keys: string[], selected: boolean) => void;
 }
 
+const NO_KEYS: string[] = [];
+
 function NodeRow({
   node,
+  keyIndex,
   selected,
   onToggle,
 }: {
   node: ContentNode;
+  keyIndex: ContentTreeProps['keyIndex'];
   selected: ReadonlySet<string>;
   onToggle: ContentTreeProps['onToggle'];
 }) {
-  const keys = collectAttachmentKeys([node]);
+  const keys = keyIndex.get(node) ?? NO_KEYS;
   const selectedCount = keys.filter((key) => selected.has(key)).length;
   const checked = keys.length > 0 && selectedCount === keys.length;
   const indeterminate = selectedCount > 0 && !checked;
@@ -103,6 +108,7 @@ function NodeRow({
             <NodeRow
               key={child.pk1}
               node={child}
+              keyIndex={keyIndex}
               selected={selected}
               onToggle={onToggle}
             />
@@ -113,13 +119,19 @@ function NodeRow({
   );
 }
 
-export function ContentTree({ nodes, selected, onToggle }: ContentTreeProps) {
+export function ContentTree({
+  nodes,
+  keyIndex,
+  selected,
+  onToggle,
+}: ContentTreeProps) {
   return (
     <ul className="space-y-1">
       {nodes.map((node) => (
         <NodeRow
           key={node.pk1}
           node={node}
+          keyIndex={keyIndex}
           selected={selected}
           onToggle={onToggle}
         />

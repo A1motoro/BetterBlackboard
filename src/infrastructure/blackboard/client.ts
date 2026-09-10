@@ -1,4 +1,5 @@
 import type { Attachment, ContentNode, Course } from '../../core/types';
+import { uniqueCourses, type CourseMembershipRecord } from '../../core/courses';
 import type { ApiTransport } from './transport';
 
 interface ApiPage<T> {
@@ -24,6 +25,11 @@ interface RawContent {
   };
 }
 
+interface RawMembership {
+  courseId?: string;
+  course?: RawCourse;
+}
+
 interface RawAttachment {
   id: string;
   fileName?: string;
@@ -37,7 +43,9 @@ class RequestLimiter {
   constructor(private readonly concurrency: number) {}
 
   async run<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.active >= this.concurrency) {
+    // Re-check after waking: a caller that arrived while this one was queued
+    // may already have taken the freed slot.
+    while (this.active >= this.concurrency) {
       await new Promise<void>((resolve) => this.waiting.push(resolve));
     }
     this.active += 1;
@@ -50,6 +58,8 @@ class RequestLimiter {
   }
 }
 
+const CONTENT_FIELDS = 'id,title,contentHandler,hasChildren';
+const CONTENT_CHILDREN = `children?fields=${CONTENT_FIELDS}`;
 const FOLDER_HANDLER = 'resource/x-bb-folder';
 const ATTACHMENT_HANDLERS = new Set([
   'resource/x-bb-file',
@@ -80,11 +90,86 @@ export class BlackboardClient {
     };
   }
 
+  async listMyCourses(signal?: AbortSignal): Promise<Course[]> {
+    const rows = await this.getAll<RawMembership>(
+      '/learn/api/public/v1/users/me/courses?expand=course&limit=100',
+      signal,
+    );
+    const records: CourseMembershipRecord[] = rows.map((row) => {
+      const course = row.course;
+      const pk1 = course?.id ?? row.courseId ?? '';
+      return {
+        coursePk1: pk1,
+        batchUid: course?.courseId ?? '',
+        name: course?.name ?? course?.courseId ?? pk1,
+        ultraStatus: course?.ultraStatus ?? 'Unknown',
+      };
+    });
+
+    const courses = uniqueCourses(records);
+    const unnamed = courses.filter(
+      (course) => !course.name || course.name === course.pk1,
+    );
+    if (unnamed.length === 0) return courses;
+
+    const resolved = await Promise.all(
+      unnamed.map(async (course) => {
+        try {
+          return await this.getCourse(course.pk1, signal);
+        } catch {
+          return course;
+        }
+      }),
+    );
+    const byPk1 = new Map(resolved.map((course) => [course.pk1, course]));
+    return uniqueCourses(
+      courses.map((course) => {
+        const next = byPk1.get(course.pk1) ?? course;
+        return {
+          coursePk1: next.pk1,
+          batchUid: next.batchUid,
+          name: next.name,
+          ultraStatus: next.ultraStatus,
+        };
+      }),
+    );
+  }
+
+  async loadAttachments(
+    coursePk1: string,
+    contentPk1: string,
+    signal?: AbortSignal,
+  ): Promise<Attachment[]> {
+    return this.getAttachments(coursePk1, contentPk1, signal);
+  }
+
+  async loadCourseContent(
+    coursePk1: string,
+    signal?: AbortSignal,
+  ): Promise<ContentNode[]> {
+    const walker = this.createWalker(coursePk1, signal);
+    const roots = await this.getAll<RawContent>(
+      `/learn/api/public/v1/courses/${encodeURIComponent(coursePk1)}/contents?fields=${CONTENT_FIELDS}`,
+      signal,
+    );
+    return Promise.all(roots.map((raw) => walker.materialize(raw)));
+  }
+
   async loadCurrentContent(
     coursePk1: string,
     contentPk1: string,
     signal?: AbortSignal,
   ): Promise<ContentNode[]> {
+    return this.createWalker(coursePk1, signal).walk(contentPk1);
+  }
+
+  private createWalker(
+    coursePk1: string,
+    signal?: AbortSignal,
+  ): {
+    walk: (parentPk1: string) => Promise<ContentNode[]>;
+    materialize: (raw: RawContent) => Promise<ContentNode>;
+  } {
     const visited = new Set<string>();
     let nodeCount = 0;
 
@@ -93,42 +178,41 @@ export class BlackboardClient {
       visited.add(parentPk1);
 
       const children = await this.getAll<RawContent>(
-        `/learn/api/public/v1/courses/${encodeURIComponent(coursePk1)}/contents/${encodeURIComponent(parentPk1)}/children?fields=id,title,contentHandler,hasChildren`,
+        `/learn/api/public/v1/courses/${encodeURIComponent(coursePk1)}/contents/${encodeURIComponent(parentPk1)}/${CONTENT_CHILDREN}`,
         signal,
       );
-
-      return Promise.all(
-        children.map(async (raw): Promise<ContentNode> => {
-          nodeCount += 1;
-          if (nodeCount > 2_000)
-            throw new Error('内容节点超过 2000 个，请缩小下载范围');
-
-          const handlerId = raw.contentHandler?.id ?? 'unknown';
-          const shouldLoadAttachments = ATTACHMENT_HANDLERS.has(handlerId);
-          const shouldLoadChildren =
-            handlerId === FOLDER_HANDLER || Boolean(raw.hasChildren);
-
-          const [attachments, nestedChildren] = await Promise.all([
-            shouldLoadAttachments
-              ? this.getAttachments(coursePk1, raw.id, signal)
-              : Promise.resolve([]),
-            shouldLoadChildren ? walk(raw.id) : Promise.resolve([]),
-          ]);
-
-          return {
-            pk1: raw.id,
-            title: raw.title?.trim() || '未命名内容',
-            handlerId,
-            hasChildren: shouldLoadChildren,
-            children: nestedChildren,
-            attachments,
-            unsupported: !KNOWN_HANDLERS.has(handlerId),
-          };
-        }),
-      );
+      return Promise.all(children.map((raw) => materialize(raw)));
     };
 
-    return walk(contentPk1);
+    const materialize = async (raw: RawContent): Promise<ContentNode> => {
+      nodeCount += 1;
+      if (nodeCount > 2_000)
+        throw new Error('内容节点超过 2000 个，请缩小下载范围');
+
+      const handlerId = raw.contentHandler?.id ?? 'unknown';
+      const shouldLoadAttachments = ATTACHMENT_HANDLERS.has(handlerId);
+      const shouldLoadChildren =
+        handlerId === FOLDER_HANDLER || Boolean(raw.hasChildren);
+
+      const [attachments, nestedChildren] = await Promise.all([
+        shouldLoadAttachments
+          ? this.getAttachments(coursePk1, raw.id, signal)
+          : Promise.resolve([]),
+        shouldLoadChildren ? walk(raw.id) : Promise.resolve([]),
+      ]);
+
+      return {
+        pk1: raw.id,
+        title: raw.title?.trim() || '未命名内容',
+        handlerId,
+        hasChildren: shouldLoadChildren,
+        children: nestedChildren,
+        attachments,
+        unsupported: !KNOWN_HANDLERS.has(handlerId),
+      };
+    };
+
+    return { walk, materialize };
   }
 
   private async getAttachments(

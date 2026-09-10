@@ -15,11 +15,16 @@ export function attachmentKey(attachment: Attachment): string {
   return `${attachment.contentPk1}:${attachment.pk1}`;
 }
 
+/**
+ * `nodes` are the children of the entry content item, so its own title has to
+ * be supplied via `rootFolders` to keep sibling folders from colliding.
+ */
 export function createDownloadPlan(
   context: CourseContext,
   course: Course,
   nodes: ContentNode[],
   selected: ReadonlySet<string>,
+  rootFolders: readonly string[] = [],
 ): DownloadTaskInput[] {
   const tasks: DownloadTaskInput[] = [];
 
@@ -56,8 +61,28 @@ export function createDownloadPlan(
     }
   };
 
-  walk(nodes, []);
+  walk(nodes, [...rootFolders]);
   return tasks;
+}
+
+export function createFullDownloadPlan(
+  context: CourseContext,
+  course: Course,
+  nodes: ContentNode[],
+): DownloadTaskInput[] {
+  return createDownloadPlan(
+    context,
+    course,
+    nodes,
+    new Set(collectAttachmentKeys(nodes)),
+  );
+}
+
+export function excludeKnownPaths(
+  tasks: DownloadTaskInput[],
+  knownPaths: ReadonlySet<string>,
+): DownloadTaskInput[] {
+  return tasks.filter((task) => !knownPaths.has(task.targetPath));
 }
 
 export function collectAttachmentKeys(nodes: ContentNode[]): string[] {
@@ -70,4 +95,24 @@ export function collectAttachmentKeys(nodes: ContentNode[]): string[] {
   };
   walk(nodes);
   return keys;
+}
+
+/**
+ * Precomputes each node's subtree keys once per load; resolving them during
+ * render instead makes selection O(n^2) over the whole tree.
+ */
+export function buildAttachmentKeyIndex(
+  nodes: ContentNode[],
+): Map<ContentNode, string[]> {
+  const index = new Map<ContentNode, string[]>();
+
+  const walk = (node: ContentNode): string[] => {
+    const keys = node.attachments.map(attachmentKey);
+    for (const child of node.children) keys.push(...walk(child));
+    index.set(node, keys);
+    return keys;
+  };
+
+  for (const node of nodes) walk(node);
+  return index;
 }

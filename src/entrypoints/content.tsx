@@ -13,6 +13,8 @@ import '../assets/sidebar.css';
 
 const PAGE_LAYOUT_STYLE_ID = 'better-blackboard-page-layout';
 const SIDEBAR_OPEN_ATTRIBUTE = 'data-better-blackboard-sidebar-open';
+// Sidebar is 380px wide with a 16px inset on each side.
+const SIDEBAR_INSET = '412px';
 
 function ensurePageLayoutStyle(): HTMLStyleElement {
   const existing = document.getElementById(PAGE_LAYOUT_STYLE_ID);
@@ -20,19 +22,21 @@ function ensurePageLayoutStyle(): HTMLStyleElement {
 
   const style = document.createElement('style');
   style.id = PAGE_LAYOUT_STYLE_ID;
+  // `100%` resolves against <html>, which already excludes the scrollbar;
+  // `100vw` does not and leaves the page overflowing horizontally.
   style.textContent = `
     html[${SIDEBAR_OPEN_ATTRIBUTE}="true"] body {
       box-sizing: border-box !important;
-      width: calc(100vw - 410px) !important;
-      max-width: calc(100vw - 410px) !important;
+      width: calc(100% - ${SIDEBAR_INSET}) !important;
+      max-width: calc(100% - ${SIDEBAR_INSET}) !important;
       min-width: 0 !important;
       transition: width 180ms ease, max-width 180ms ease;
     }
     html[${SIDEBAR_OPEN_ATTRIBUTE}="true"] #globalNavPageNavArea,
     html[${SIDEBAR_OPEN_ATTRIBUTE}="true"] #topFrame {
       box-sizing: border-box !important;
-      width: calc(100vw - 410px) !important;
-      right: 410px !important;
+      width: calc(100vw - ${SIDEBAR_INSET}) !important;
+      right: ${SIDEBAR_INSET} !important;
     }
   `;
   (document.head ?? document.documentElement).append(style);
@@ -52,26 +56,29 @@ const contentScript = defineContentScript({
   registration: 'runtime',
   cssInjectionMode: 'ui',
   async main(ctx) {
-    if (document.querySelector('better-blackboard-ui')) {
-      setPageSqueezed(true);
-      return;
-    }
-
+    // WXT invalidates any previous instance before `main` runs, so re-injection
+    // always tears down and rebuilds; the sidebar drives the page layout.
     const pageLayoutStyle = ensurePageLayoutStyle();
-    setPageSqueezed(true);
+    ctx.onInvalidated(() => {
+      setPageSqueezed(false);
+      pageLayoutStyle.remove();
+    });
+
     const context = parseCourseContext(new URL(window.location.href));
-    let removeEmbeddedActions: (() => void) | undefined;
     if (context) {
       const transport = new FallbackApiTransport(
         new FetchApiTransport(context.origin),
         new BackgroundApiTransport(context.origin),
       );
       const client = new BlackboardClient(transport);
-      removeEmbeddedActions = mountEmbeddedDownloadActions(
+      const removeEmbeddedActions = mountEmbeddedDownloadActions(
         context,
         client,
         client.getCourse(context.coursePk1),
       );
+      // Registered here rather than in `onRemove`: the UI below is awaited, and
+      // an invalidation during that await would otherwise leak the observer.
+      ctx.onInvalidated(removeEmbeddedActions);
     }
 
     const ui = await createShadowRootUi(ctx, {
@@ -95,9 +102,7 @@ const contentScript = defineContentScript({
       },
       onRemove(root) {
         root?.unmount();
-        removeEmbeddedActions?.();
         setPageSqueezed(false);
-        pageLayoutStyle.remove();
       },
     });
 

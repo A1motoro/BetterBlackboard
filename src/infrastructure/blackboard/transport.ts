@@ -141,7 +141,8 @@ export class FetchApiTransport implements ApiTransport {
 export class BackgroundApiTransport implements ApiTransport {
   constructor(private readonly origin: string) {}
 
-  async request<T>(path: string): Promise<T> {
+  async request<T>(path: string, signal?: AbortSignal): Promise<T> {
+    signal?.throwIfAborted();
     const message: ApiRequestMessage = {
       v: 1,
       type: 'api.request',
@@ -151,6 +152,10 @@ export class BackgroundApiTransport implements ApiTransport {
     };
     const response: ExtensionResponse<T> =
       await browser.runtime.sendMessage(message);
+    signal?.throwIfAborted();
+    if (!response) {
+      throw new BbError('api_incompatible', '扩展后台没有响应');
+    }
     if (response.ok) return response.data;
     const error: SerializedBbError = response.error;
     throw new BbError(error.code, error.message, error.status);
@@ -167,11 +172,9 @@ export class FallbackApiTransport implements ApiTransport {
     try {
       return await this.primary.request<T>(path, signal);
     } catch (error) {
-      if (
-        error instanceof BbError &&
-        (error.code === 'network_unreachable' ||
-          error.code === 'api_incompatible')
-      ) {
+      // Only retry when the page context could not reach the network at all.
+      // Retrying a real API error would just double the load for the same result.
+      if (error instanceof BbError && error.code === 'network_unreachable') {
         return this.fallback.request<T>(path, signal);
       }
       throw error;

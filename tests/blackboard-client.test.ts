@@ -96,6 +96,28 @@ describe('BlackboardClient', () => {
     expect(transport.calls).toContain(attachmentSecondPage);
   });
 
+  it('直接加载单个内容项的附件', async () => {
+    const attachments =
+      '/learn/api/public/v1/courses/_1_1/contents/_doc_1/attachments';
+    const transport = new FixtureTransport({
+      [attachments]: {
+        results: [
+          { id: '_att_1', fileName: 'glossary.pdf' },
+          { id: '_att_2', fileName: 'syllabus.pdf' },
+        ],
+      },
+    });
+
+    const files = await new BlackboardClient(transport).loadAttachments(
+      '_1_1',
+      '_doc_1',
+    );
+    expect(files.map((item) => item.fileName)).toEqual([
+      'glossary.pdf',
+      'syllabus.pdf',
+    ]);
+  });
+
   it('保留未知 handler 而不静默丢弃', async () => {
     const root =
       '/learn/api/public/v1/courses/_1_1/contents/_root_1/children?fields=id,title,contentHandler,hasChildren';
@@ -117,5 +139,79 @@ describe('BlackboardClient', () => {
     );
     expect(node?.unsupported).toBe(true);
     expect(node?.title).toBe('Mystery');
+  });
+
+  it('列出当前用户的课程', async () => {
+    const path =
+      '/learn/api/public/v1/users/me/courses?expand=course&limit=100';
+    const transport = new FixtureTransport({
+      [path]: {
+        results: [
+          {
+            courseId: '_2_1',
+            course: {
+              id: '_2_1',
+              courseId: 'PHY1001',
+              name: 'PHY1001:Mechanics_L01',
+              ultraStatus: 'Classic',
+            },
+          },
+          {
+            courseId: '_1_1',
+            course: {
+              id: '_1_1',
+              courseId: 'AIE2001',
+              name: 'AIE2001:Rationality',
+              ultraStatus: 'Classic',
+            },
+          },
+        ],
+      },
+    });
+
+    const courses = await new BlackboardClient(transport).listMyCourses();
+    expect(courses.map((course) => course.name)).toEqual([
+      'AIE2001:Rationality',
+      'PHY1001:Mechanics_L01',
+    ]);
+  });
+
+  it('从课程根节点加载整课内容', async () => {
+    const roots =
+      '/learn/api/public/v1/courses/_1_1/contents?fields=id,title,contentHandler,hasChildren';
+    const children =
+      '/learn/api/public/v1/courses/_1_1/contents/_folder_1/children?fields=id,title,contentHandler,hasChildren';
+    const attachments =
+      '/learn/api/public/v1/courses/_1_1/contents/_file_1/attachments';
+    const transport = new FixtureTransport({
+      [roots]: {
+        results: [
+          {
+            id: '_folder_1',
+            title: 'Content',
+            hasChildren: true,
+            contentHandler: { id: 'resource/x-bb-folder' },
+          },
+        ],
+      },
+      [children]: {
+        results: [
+          {
+            id: '_file_1',
+            title: 'Outline',
+            contentHandler: { id: 'resource/x-bb-document' },
+          },
+        ],
+      },
+      [attachments]: {
+        results: [{ id: '_att_1', fileName: 'outline.pdf' }],
+      },
+    });
+
+    const nodes = await new BlackboardClient(transport).loadCourseContent(
+      '_1_1',
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]?.children[0]?.attachments[0]?.fileName).toBe('outline.pdf');
   });
 });

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { attachmentKey, createDownloadPlan } from '../src/core/download-plan';
+import {
+  attachmentKey,
+  buildAttachmentKeyIndex,
+  collectAttachmentKeys,
+  createDownloadPlan,
+} from '../src/core/download-plan';
 import type {
   Attachment,
   ContentNode,
@@ -91,5 +96,63 @@ describe('createDownloadPlan', () => {
       new Set([attachmentKey(attachment)]),
     );
     expect(task?.targetPath).toBe('BB/PHY1001_Mechanics/Chapter 1.pdf');
+  });
+
+  it('用 rootFolders 保留入口目录，避免同名文件互相覆盖', () => {
+    const build = (folder: string, pk1: string) => {
+      const attachment: Attachment = {
+        pk1: `_att_${pk1}`,
+        contentPk1: `_file_${pk1}`,
+        fileName: 'slides.pdf',
+      };
+      const nodes = [fileNode(`_file_${pk1}`, 'Slides', attachment)];
+      return createDownloadPlan(
+        context,
+        course,
+        nodes,
+        new Set([attachmentKey(attachment)]),
+        [folder],
+      );
+    };
+
+    expect(build('Week 1', '1')[0]?.targetPath).toBe(
+      'BB/PHY1001_Mechanics/Week 1/slides.pdf',
+    );
+    expect(build('Week 2', '2')[0]?.targetPath).toBe(
+      'BB/PHY1001_Mechanics/Week 2/slides.pdf',
+    );
+  });
+});
+
+describe('buildAttachmentKeyIndex', () => {
+  it('每个节点都映射到自身子树的全部附件 key', () => {
+    const leafAttachment: Attachment = {
+      pk1: '_att_leaf',
+      contentPk1: '_file_leaf',
+      fileName: 'Deep.pdf',
+    };
+    const ownAttachment: Attachment = {
+      pk1: '_att_own',
+      contentPk1: '_folder_1',
+      fileName: 'Syllabus.pdf',
+    };
+    const leaf = fileNode('_file_leaf', 'Deep', leafAttachment);
+    const folder: ContentNode = {
+      pk1: '_folder_1',
+      title: 'Week 1',
+      handlerId: 'resource/x-bb-folder',
+      hasChildren: true,
+      attachments: [ownAttachment],
+      unsupported: false,
+      children: [leaf],
+    };
+
+    const index = buildAttachmentKeyIndex([folder]);
+    expect(index.get(folder)).toEqual([
+      attachmentKey(ownAttachment),
+      attachmentKey(leafAttachment),
+    ]);
+    expect(index.get(leaf)).toEqual([attachmentKey(leafAttachment)]);
+    expect(index.get(folder)).toEqual(collectAttachmentKeys([folder]));
   });
 });

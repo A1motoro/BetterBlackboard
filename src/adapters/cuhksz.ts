@@ -8,6 +8,21 @@ export function matchesCuhksz(url: URL): boolean {
   return url.origin === CUHKSZ_ORIGIN;
 }
 
+/** Portal / Ultra home where the user picks courses, not a content list page. */
+export function isBlackboardMainMenu(url: URL): boolean {
+  if (!matchesCuhksz(url)) return false;
+  const path = url.pathname;
+  return (
+    path.includes('/webapps/portal/') ||
+    path === '/ultra' ||
+    path === '/ultra/' ||
+    path.startsWith('/ultra/institution-page') ||
+    path.startsWith('/ultra/stream') ||
+    path === '/ultra/course' ||
+    path.startsWith('/ultra/course?')
+  );
+}
+
 export function parseCourseContext(url: URL): CourseContext | null {
   if (!matchesCuhksz(url)) return null;
 
