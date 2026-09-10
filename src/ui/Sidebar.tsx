@@ -1,8 +1,18 @@
-import { useEffect, useMemo, useReducer } from 'react';
-import { parseCourseContext } from '../adapters/cuhksz';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import {
+  CUHKSZ_ORIGIN,
+  isBlackboardMainMenu,
+  parseCourseContext,
+} from '../adapters/cuhksz';
+import {
+  HOME_SYNC_MIN_INTERVAL_MS,
+  type CourseTrackingSnapshot,
+} from '../core/courses';
+import {
+  buildAttachmentKeyIndex,
   collectAttachmentKeys,
   createDownloadPlan,
+  createFullDownloadPlan,
 } from '../core/download-plan';
 import {
   BbError,
@@ -18,13 +28,27 @@ import {
   FetchApiTransport,
 } from '../infrastructure/blackboard/transport';
 import {
+  isDownloadSnapshotEvent,
   requestId,
-  type DownloadSnapshotEvent,
+  type EnqueueResult,
   type ExtensionRequest,
   type ExtensionResponse,
 } from '../infrastructure/messages';
 import { ContentTree } from './ContentTree';
+import { CourseTracker } from './CourseTracker';
 import { DownloadPanel } from './DownloadPanel';
+
+const POLL_INTERVAL = 1_200;
+const PENDING_STATUSES = new Set<DownloadTask['status']>([
+  'queued',
+  'starting',
+  'in_progress',
+]);
+
+interface Notice {
+  tone: 'info' | 'error';
+  message: string;
+}
 
 interface State {
   loading: boolean;
@@ -33,7 +57,12 @@ interface State {
   selected: Set<string>;
   tasks: DownloadTask[];
   course: Course | null;
-  error: string | null;
+  courses: Course[];
+  tracked: Set<string>;
+  busyPk1: string | null;
+  syncing: boolean;
+  loadError: string | null;
+  notice: Notice | null;
 }
 
 type Action =
@@ -41,7 +70,13 @@ type Action =
   | { type: 'failed'; message: string }
   | { type: 'toggle'; keys: string[]; selected: boolean }
   | { type: 'tasks'; tasks: DownloadTask[] }
-  | { type: 'collapse'; value: boolean };
+  | { type: 'collapse'; value: boolean }
+  | { type: 'ready' }
+  | { type: 'notice'; notice: Notice | null }
+  | { type: 'courses'; courses: Course[] }
+  | { type: 'tracking'; tracked: string[] }
+  | { type: 'busy'; coursePk1: string | null }
+  | { type: 'syncing'; value: boolean };
 
 const initialState: State = {
   loading: true,
@@ -50,7 +85,12 @@ const initialState: State = {
   selected: new Set(),
   tasks: [],
   course: null,
-  error: null,
+  courses: [],
+  tracked: new Set(),
+  busyPk1: null,
+  syncing: false,
+  loadError: null,
+  notice: null,
 };
 
 function reducer(state: State, action: Action): State {
@@ -62,10 +102,12 @@ function reducer(state: State, action: Action): State {
         course: action.course,
         nodes: action.nodes,
         selected: new Set(),
-        error: null,
+        loadError: null,
       };
     case 'failed':
-      return { ...state, loading: false, error: action.message };
+      return { ...state, loading: false, loadError: action.message };
+    case 'ready':
+      return { ...state, loading: false, loadError: null };
     case 'toggle': {
       const selected = new Set(state.selected);
       for (const key of action.keys) {
@@ -78,12 +120,25 @@ function reducer(state: State, action: Action): State {
       return { ...state, tasks: action.tasks };
     case 'collapse':
       return { ...state, collapsed: action.value };
+    case 'notice':
+      return { ...state, notice: action.notice };
+    case 'courses':
+      return { ...state, courses: action.courses };
+    case 'tracking':
+      return { ...state, tracked: new Set(action.tracked) };
+    case 'busy':
+      return { ...state, busyPk1: action.coursePk1 };
+    case 'syncing':
+      return { ...state, syncing: action.value };
   }
 }
 
 async function send<T>(message: ExtensionRequest): Promise<T> {
   const response: ExtensionResponse<T> =
     await browser.runtime.sendMessage(message);
+  if (!response) {
+    throw new BbError('api_incompatible', '扩展后台没有响应，请重新加载页面');
+  }
   if (response.ok) return response.data;
   throw new BbError(
     response.error.code,
@@ -98,69 +153,107 @@ function errorMessage(error: unknown): string {
   return '加载 Blackboard 内容时发生未知错误';
 }
 
+function enqueueNotice(result: EnqueueResult): Notice {
+  const parts: string[] = [];
+  if (result.accepted > 0) parts.push(`已加入 ${result.accepted} 个文件`);
+  if (result.duplicates > 0) parts.push(`${result.duplicates} 个已在队列中`);
+  if (result.rejected > 0) parts.push(`${result.rejected} 个被安全策略拦截`);
+  return {
+    tone: result.accepted > 0 ? 'info' : 'error',
+    message: parts.length > 0 ? parts.join('，') : '没有新的文件需要下载',
+  };
+}
+
+function createClient(): BlackboardClient {
+  return new BlackboardClient(
+    new FallbackApiTransport(
+      new FetchApiTransport(CUHKSZ_ORIGIN),
+      new BackgroundApiTransport(CUHKSZ_ORIGIN),
+    ),
+  );
+}
+
 interface SidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 export function Sidebar({ onCollapsedChange }: SidebarProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const context = useMemo(
-    () => parseCourseContext(new URL(window.location.href)),
-    [],
-  );
+  const pageUrl = useMemo(() => new URL(window.location.href), []);
+  const context = useMemo(() => parseCourseContext(pageUrl), [pageUrl]);
+  const isHome = useMemo(() => isBlackboardMainMenu(pageUrl), [pageUrl]);
+  const client = useMemo(() => createClient(), []);
 
   useEffect(() => {
     onCollapsedChange?.(state.collapsed);
   }, [onCollapsedChange, state.collapsed]);
 
-  useEffect(() => {
-    const listener = (message: unknown) => {
-      const event = message as Partial<DownloadSnapshotEvent>;
-      if (
-        event.v === 1 &&
-        event.type === 'downloads.snapshot' &&
-        Array.isArray(event.tasks)
-      ) {
-        dispatch({ type: 'tasks', tasks: event.tasks });
-      }
-    };
-    browser.runtime.onMessage.addListener(listener);
-
-    const refresh = () => {
-      void send<DownloadTask[]>({
-        v: 1,
-        type: 'downloads.snapshot.get',
-        requestId: requestId(),
-      })
-        .then((tasks) => dispatch({ type: 'tasks', tasks }))
-        .catch(() => undefined);
-    };
-    refresh();
-    const timer = window.setInterval(refresh, 1_200);
-
-    return () => {
-      window.clearInterval(timer);
-      browser.runtime.onMessage.removeListener(listener);
-    };
+  const refresh = useCallback(() => {
+    void send<DownloadTask[]>({
+      v: 1,
+      type: 'downloads.snapshot.get',
+      requestId: requestId(),
+    })
+      .then((tasks) => dispatch({ type: 'tasks', tasks }))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    if (!context) {
-      dispatch({
-        type: 'failed',
-        message:
-          '请打开包含 course_id 和 content_id 的 Blackboard 课程内容页。',
+    const listener = (message: unknown) => {
+      if (isDownloadSnapshotEvent(message)) {
+        dispatch({ type: 'tasks', tasks: message.tasks });
+      }
+    };
+    browser.runtime.onMessage.addListener(listener);
+    refresh();
+    return () => browser.runtime.onMessage.removeListener(listener);
+  }, [refresh]);
+
+  // The background pushes every state transition, so polling only has to cover
+  // byte-level progress while something is actually running.
+  const hasPendingTasks = state.tasks.some((task) =>
+    PENDING_STATUSES.has(task.status),
+  );
+  useEffect(() => {
+    if (!hasPendingTasks) return;
+    const timer = window.setInterval(refresh, POLL_INTERVAL);
+    return () => window.clearInterval(timer);
+  }, [hasPendingTasks, refresh]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.all([
+      client.listMyCourses(controller.signal),
+      send<CourseTrackingSnapshot>({
+        v: 1,
+        type: 'courses.tracking.get',
+        requestId: requestId(),
+      }),
+    ])
+      .then(([courses, tracking]) => {
+        dispatch({ type: 'courses', courses });
+        dispatch({ type: 'tracking', tracked: tracking.trackedPk1s });
+        if (!context) dispatch({ type: 'ready' });
+        return tracking;
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        if (!context) {
+          dispatch({ type: 'failed', message: errorMessage(error) });
+        } else {
+          dispatch({
+            type: 'notice',
+            notice: { tone: 'error', message: errorMessage(error) },
+          });
+        }
       });
-      return;
-    }
+    return () => controller.abort();
+  }, [client, context]);
+
+  useEffect(() => {
+    if (!context) return;
 
     const controller = new AbortController();
-    const transport = new FallbackApiTransport(
-      new FetchApiTransport(context.origin),
-      new BackgroundApiTransport(context.origin),
-    );
-    const client = new BlackboardClient(transport);
-
     void Promise.all([
       client.getCourse(context.coursePk1, controller.signal),
       client.loadCurrentContent(
@@ -177,46 +270,154 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
       });
 
     return () => controller.abort();
-  }, [context]);
+  }, [client, context]);
 
-  const currentTasks = context
-    ? state.tasks.filter((task) => task.coursePk1 === context.coursePk1)
-    : [];
-  const allKeys = collectAttachmentKeys(state.nodes);
+  const currentTasks = useMemo(
+    () =>
+      context
+        ? state.tasks.filter((task) => task.coursePk1 === context.coursePk1)
+        : state.tasks,
+    [context, state.tasks],
+  );
+  const keyIndex = useMemo(
+    () => buildAttachmentKeyIndex(state.nodes),
+    [state.nodes],
+  );
+  const allKeys = useMemo(
+    () => collectAttachmentKeys(state.nodes),
+    [state.nodes],
+  );
   const allSelected =
     allKeys.length > 0 && allKeys.every((key) => state.selected.has(key));
 
   const enqueue = async (tasks: DownloadTaskInput[]): Promise<void> => {
-    if (tasks.length === 0) return;
-    const snapshot = await send<DownloadTask[]>({
+    if (tasks.length === 0) {
+      dispatch({
+        type: 'notice',
+        notice: { tone: 'error', message: '没有选择任何文件' },
+      });
+      return;
+    }
+    const result = await send<EnqueueResult>({
       v: 1,
       type: 'downloads.enqueue',
       requestId: requestId(),
       tasks,
     });
-    dispatch({ type: 'tasks', tasks: snapshot });
+    dispatch({ type: 'tasks', tasks: result.tasks });
+    dispatch({ type: 'notice', notice: enqueueNotice(result) });
   };
 
-  const startDownload = async (): Promise<void> => {
+  // Operation failures surface as a dismissible notice; replacing `loadError`
+  // here would tear down the already-loaded tree and the user's selection.
+  const reportFailure = (error: unknown): void => {
+    dispatch({
+      type: 'notice',
+      notice: { tone: 'error', message: errorMessage(error) },
+    });
+  };
+
+  const syncCourse = useCallback(
+    async (course: Course): Promise<EnqueueResult> => {
+      const nodes = await client.loadCourseContent(course.pk1);
+      return send<EnqueueResult>({
+        v: 1,
+        type: 'downloads.enqueue',
+        requestId: requestId(),
+        tasks: createFullDownloadPlan(
+          {
+            origin: CUHKSZ_ORIGIN,
+            coursePk1: course.pk1,
+            contentPk1: course.pk1,
+          },
+          course,
+          nodes,
+        ),
+      });
+    },
+    [client],
+  );
+
+  const toggleTrack = (course: Course, tracked: boolean): void => {
+    void (async () => {
+      const snapshot = await send<CourseTrackingSnapshot>({
+        v: 1,
+        type: 'courses.tracking.set',
+        requestId: requestId(),
+        coursePk1: course.pk1,
+        tracked,
+        name: course.name,
+      });
+      dispatch({ type: 'tracking', tracked: snapshot.trackedPk1s });
+      if (!tracked) return;
+
+      dispatch({ type: 'busy', coursePk1: course.pk1 });
+      const result = await syncCourse(course);
+      dispatch({ type: 'tasks', tasks: result.tasks });
+      dispatch({ type: 'notice', notice: enqueueNotice(result) });
+    })()
+      .catch(reportFailure)
+      .finally(() => dispatch({ type: 'busy', coursePk1: null }));
+  };
+
+  const syncTracked = useCallback(
+    (courses: Course[]): void => {
+      const selected = courses.filter((course) =>
+        state.tracked.has(course.pk1),
+      );
+      if (selected.length === 0) return;
+      dispatch({ type: 'syncing', value: true });
+      void (async () => {
+        let accepted = 0;
+        let duplicates = 0;
+        let lastTasks: DownloadTask[] = [];
+        for (const course of selected) {
+          const result = await syncCourse(course);
+          accepted += result.accepted;
+          duplicates += result.duplicates;
+          lastTasks = result.tasks;
+        }
+        await send<CourseTrackingSnapshot>({
+          v: 1,
+          type: 'courses.tracking.homeSynced',
+          requestId: requestId(),
+        });
+        dispatch({ type: 'tasks', tasks: lastTasks });
+        dispatch({
+          type: 'notice',
+          notice: enqueueNotice({
+            tasks: lastTasks,
+            accepted,
+            duplicates,
+            rejected: 0,
+          }),
+        });
+      })()
+        .catch(reportFailure)
+        .finally(() => dispatch({ type: 'syncing', value: false }));
+    },
+    [state.tracked, syncCourse],
+  );
+
+  const startDownload = (): void => {
     if (!context || !state.course) return;
-    await enqueue(
+    void enqueue(
       createDownloadPlan(context, state.course, state.nodes, state.selected),
-    ).catch((error: unknown) =>
-      dispatch({ type: 'failed', message: errorMessage(error) }),
-    );
+    ).catch(reportFailure);
   };
 
-  const cancelDownload = async (taskId: string): Promise<void> => {
-    const snapshot = await send<DownloadTask[]>({
+  const cancelDownload = (taskId: string): void => {
+    void send<DownloadTask[]>({
       v: 1,
       type: 'downloads.cancel',
       requestId: requestId(),
       taskId,
-    });
-    dispatch({ type: 'tasks', tasks: snapshot });
+    })
+      .then((tasks) => dispatch({ type: 'tasks', tasks }))
+      .catch(reportFailure);
   };
 
-  const retryDownload = async (task: DownloadTask): Promise<void> => {
+  const retryDownload = (task: DownloadTask): void => {
     const input: DownloadTaskInput = {
       origin: task.origin,
       coursePk1: task.coursePk1,
@@ -225,8 +426,26 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
       sourceFileName: task.sourceFileName,
       targetPath: task.targetPath,
     };
-    await enqueue([input]);
+    void enqueue([input]).catch(reportFailure);
   };
+
+  const didHomeSync = useRef(false);
+  useEffect(() => {
+    if (didHomeSync.current) return;
+    if (!isHome || state.loading || state.courses.length === 0) return;
+    didHomeSync.current = true;
+    if (state.tracked.size === 0) return;
+    void send<CourseTrackingSnapshot>({
+      v: 1,
+      type: 'courses.tracking.get',
+      requestId: requestId(),
+    }).then((tracking) => {
+      if (Date.now() - tracking.lastHomeSyncAt < HOME_SYNC_MIN_INTERVAL_MS) {
+        return;
+      }
+      syncTracked(state.courses);
+    });
+  }, [isHome, state.courses, state.loading, state.tracked, syncTracked]);
 
   if (state.collapsed) {
     return (
@@ -248,7 +467,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
             Better Blackboard
           </p>
           <h1 className="truncate text-sm font-semibold">
-            {state.course?.name ?? '课程附件'}
+            {context ? (state.course?.name ?? '课程附件') : '跟踪课程'}
           </h1>
         </div>
         <button
@@ -261,6 +480,29 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
         </button>
       </header>
 
+      {state.notice && (
+        <div
+          role="status"
+          className={`flex shrink-0 items-start gap-2 px-4 py-2 text-xs ${
+            state.notice.tone === 'error'
+              ? 'bg-red-50 text-red-800'
+              : 'bg-indigo-50 text-indigo-800'
+          }`}
+        >
+          <span className="min-w-0 flex-1 break-words">
+            {state.notice.message}
+          </span>
+          <button
+            type="button"
+            aria-label="关闭提示"
+            className="shrink-0 opacity-60 hover:opacity-100"
+            onClick={() => dispatch({ type: 'notice', notice: null })}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {state.loading && (
         <div className="min-h-0 flex-1 space-y-3 p-4">
           <div className="h-4 animate-pulse rounded bg-slate-200" />
@@ -269,16 +511,43 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
         </div>
       )}
 
-      {state.error && (
+      {state.loadError && (
         <div className="min-h-0 flex-1 p-4">
           <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-            {state.error}
+            {state.loadError}
           </div>
         </div>
       )}
 
-      {!state.loading && !state.error && (
+      {!state.loading && !state.loadError && !context && (
+        <CourseTracker
+          courses={state.courses}
+          tracked={state.tracked}
+          busyPk1={state.busyPk1}
+          syncing={state.syncing}
+          onToggle={toggleTrack}
+          onSyncNow={() => syncTracked(state.courses)}
+        />
+      )}
+
+      {!state.loading && !state.loadError && context && (
         <div className="flex min-h-0 flex-1 flex-col">
+          <label className="flex shrink-0 cursor-pointer items-center gap-2 border-b border-slate-200 px-4 py-2.5 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-indigo-600"
+              checked={state.tracked.has(context.coursePk1)}
+              disabled={state.busyPk1 !== null}
+              onChange={(event) => {
+                const course =
+                  state.course ??
+                  state.courses.find((item) => item.pk1 === context.coursePk1);
+                if (!course) return;
+                toggleTrack(course, event.target.checked);
+              }}
+            />
+            跟踪本课，主菜单打开时自动补新文件
+          </label>
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <button
               type="button"
@@ -301,6 +570,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
             {state.nodes.length > 0 ? (
               <ContentTree
                 nodes={state.nodes}
+                keyIndex={keyIndex}
                 selected={state.selected}
                 onToggle={(keys, selected) =>
                   dispatch({ type: 'toggle', keys, selected })
@@ -327,8 +597,8 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
 
       <DownloadPanel
         tasks={currentTasks}
-        onCancel={(taskId) => void cancelDownload(taskId)}
-        onRetry={(task) => void retryDownload(task)}
+        onCancel={cancelDownload}
+        onRetry={retryDownload}
       />
     </aside>
   );

@@ -1,6 +1,7 @@
 import { CUHKSZ_ORIGIN, CUHKSZ_PERMISSION } from '../adapters/cuhksz';
 import { BbError, type SerializedBbError } from '../core/types';
 import { fetchApiJson } from '../infrastructure/blackboard/transport';
+import { CourseTrackingStore } from '../infrastructure/course-tracking';
 import { PersistentDownloadQueue } from '../infrastructure/download-queue';
 import {
   isExtensionRequest,
@@ -92,9 +93,16 @@ async function activateAuthorizedSite(): Promise<void> {
 }
 
 export default defineBackground(() => {
-  const queue = new PersistentDownloadQueue();
-  const ready = queue.init();
+  const tracking = new CourseTrackingStore();
+  const queue = new PersistentDownloadQueue(tracking);
+  void queue.init();
   void activateAuthorizedSite();
+
+  // MV3 only wakes a terminated service worker for listeners registered
+  // synchronously during startup, so this must not move behind an await.
+  browser.downloads.onChanged.addListener((delta) => {
+    void queue.handleDownloadChanged(delta);
+  });
 
   // WebExtension listeners may resolve asynchronously with a response.
   browser.runtime.onMessage.addListener(
@@ -112,7 +120,6 @@ export default defineBackground(() => {
 
       const message: ExtensionRequest = rawMessage;
       try {
-        await ready;
         switch (message.type) {
           case 'api.request': {
             await requireAuthorizedOrigin(message.origin);
@@ -137,6 +144,25 @@ export default defineBackground(() => {
           case 'site.inject':
             await injectContentScript(message.tabId, message.origin);
             return { ok: true, data: null };
+          case 'courses.tracking.get':
+            await tracking.init();
+            return { ok: true, data: tracking.snapshot() };
+          case 'courses.tracking.set':
+            return {
+              ok: true,
+              data: await tracking.setTracked(
+                message.coursePk1,
+                message.tracked,
+                message.name,
+              ),
+            };
+          case 'courses.tracking.homeSynced':
+            return { ok: true, data: await tracking.markHomeSynced() };
+          default:
+            return {
+              ok: false,
+              error: { code: 'api_incompatible', message: '不支持的消息类型' },
+            };
         }
       } catch (error) {
         return { ok: false, error: serializeError(error) };
