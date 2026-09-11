@@ -1,4 +1,10 @@
-import type { AggregatedDDL, Assignment, CalendarItem, Course } from './types';
+import type {
+  AggregatedDDL,
+  Assignment,
+  CalendarItem,
+  CalendarItemType,
+  Course,
+} from './types';
 
 export interface DDLAggregationOptions {
   weeksAhead?: number;
@@ -9,6 +15,13 @@ export interface DDLAggregationOptions {
 const DEFAULT_WEEKS_AHEAD = 4;
 const DEFAULT_WEEKS_PAST = 0;
 const MAX_WEEKS_AHEAD = 16;
+
+export const SUPPORTED_ASSIGNMENT_TYPES: ReadonlySet<CalendarItemType> =
+  new Set(['GradebookColumn'] as const);
+
+export function isAssignmentType(type: CalendarItemType): boolean {
+  return SUPPORTED_ASSIGNMENT_TYPES.has(type);
+}
 
 export function createTimeRange(options: DDLAggregationOptions = {}): {
   since: string;
@@ -62,13 +75,47 @@ export function aggregateDDL(
   timeRange: { since: string; until: string },
 ): AggregatedDDL {
   const assignments: Assignment[] = [];
+  const filterCounts: Record<CalendarItemType, number> = {
+    GradebookColumn: 0,
+    Course: 0,
+    OfficeHours: 0,
+    Institution: 0,
+  };
+  let unknownTypeCount = 0;
 
   for (const { course, items } of courseItems) {
     for (const item of items) {
-      if (item.type === 'GradebookColumn') {
+      const itemType = item.type;
+
+      if (itemType in filterCounts) {
+        filterCounts[itemType]++;
+      } else {
+        unknownTypeCount++;
+        console.warn(
+          `[DDL Aggregation] Unknown CalendarItem type: "${itemType}" in course ${course.name}`,
+        );
+      }
+
+      if (isAssignmentType(itemType)) {
         assignments.push(calendarItemToAssignment(item, course.name));
       }
     }
+  }
+
+  if (
+    filterCounts.Course > 0 ||
+    filterCounts.OfficeHours > 0 ||
+    filterCounts.Institution > 0
+  ) {
+    console.info(
+      `[DDL Aggregation] Filtered ${filterCounts.Course} Course, ${filterCounts.OfficeHours} OfficeHours, ${filterCounts.Institution} Institution items`,
+    );
+  }
+
+  if (unknownTypeCount > 0) {
+    console.warn(
+      `[DDL Aggregation] Encountered ${unknownTypeCount} unknown type(s)`,
+    );
   }
 
   assignments.sort((a, b) => {
@@ -82,6 +129,10 @@ export function aggregateDDL(
     assignments,
     totalCount: assignments.length,
     timeRange,
+    filterCounts: {
+      ...filterCounts,
+      unknown: unknownTypeCount,
+    },
   };
 }
 

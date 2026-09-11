@@ -1,12 +1,18 @@
-import { describe, expect, it } from 'vitest';
-import type { CalendarItem, Course } from '../src/core/types';
+import { describe, expect, it, vi } from 'vitest';
+import type {
+  CalendarItem,
+  CalendarItemType,
+  Course,
+} from '../src/core/types';
 import {
   aggregateDDL,
   calendarItemToAssignment,
   createTimeRange,
   formatDueDate,
   groupByTimeframe,
+  isAssignmentType,
   isOverdue,
+  SUPPORTED_ASSIGNMENT_TYPES,
 } from '../src/core/ddl-aggregation';
 
 describe('createTimeRange', () => {
@@ -317,6 +323,172 @@ describe('aggregateDDL', () => {
 
     expect(result.totalCount).toBe(0);
     expect(result.assignments).toEqual([]);
+  });
+
+  it('过滤非作业类型的 CalendarItem', () => {
+    const course1: Course = {
+      pk1: '_1_1',
+      batchUid: 'TEST101',
+      name: 'Test Course',
+      ultraStatus: 'Classic',
+    };
+
+    const items: CalendarItem[] = [
+      {
+        id: '_1_1',
+        type: 'GradebookColumn',
+        calendarId: '_1_1',
+        title: 'Assignment 1',
+        start: '2026-09-15T23:59:00Z',
+        end: '2026-09-15T23:59:00Z',
+        dynamicCalendarItemProps: { attemptable: true, gradable: true },
+      },
+      {
+        id: '_2_1',
+        type: 'Course',
+        calendarId: '_1_1',
+        title: 'Course Event',
+        start: '2026-09-16T10:00:00Z',
+        end: '2026-09-16T11:00:00Z',
+      },
+      {
+        id: '_3_1',
+        type: 'OfficeHours',
+        calendarId: '_1_1',
+        title: 'Office Hours',
+        start: '2026-09-17T14:00:00Z',
+        end: '2026-09-17T15:00:00Z',
+      },
+      {
+        id: '_4_1',
+        type: 'Institution',
+        calendarId: '_1_1',
+        title: 'Institution Event',
+        start: '2026-09-18T09:00:00Z',
+        end: '2026-09-18T10:00:00Z',
+      },
+    ];
+
+    const result = aggregateDDL([{ course: course1, items }], {
+      since: '2026-09-01T00:00:00Z',
+      until: '2026-09-30T23:59:59Z',
+    });
+
+    expect(result.assignments).toHaveLength(1);
+    expect(result.assignments[0]?.title).toBe('Assignment 1');
+    expect(result.filterCounts).toEqual({
+      GradebookColumn: 1,
+      Course: 1,
+      OfficeHours: 1,
+      Institution: 1,
+      unknown: 0,
+    });
+  });
+
+  it('记录未知的 CalendarItem 类型', () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+
+    const course1: Course = {
+      pk1: '_1_1',
+      batchUid: 'TEST101',
+      name: 'Test Course',
+      ultraStatus: 'Classic',
+    };
+
+    const items: CalendarItem[] = [
+      {
+        id: '_1_1',
+        type: 'UnknownType' as CalendarItemType,
+        calendarId: '_1_1',
+        title: 'Unknown Item',
+        start: '2026-09-15T23:59:00Z',
+        end: '2026-09-15T23:59:00Z',
+      },
+    ];
+
+    const result = aggregateDDL([{ course: course1, items }], {
+      since: '2026-09-01T00:00:00Z',
+      until: '2026-09-30T23:59:59Z',
+    });
+
+    expect(result.assignments).toHaveLength(0);
+    expect(result.filterCounts?.unknown).toBe(1);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Unknown CalendarItem type: "UnknownType"'),
+    );
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('记录所有被过滤的类型统计', () => {
+    const consoleInfoSpy = vi
+      .spyOn(console, 'info')
+      .mockImplementation(() => {});
+
+    const course1: Course = {
+      pk1: '_1_1',
+      batchUid: 'TEST101',
+      name: 'Test Course',
+      ultraStatus: 'Classic',
+    };
+
+    const items: CalendarItem[] = [
+      {
+        id: '_2_1',
+        type: 'Course',
+        calendarId: '_1_1',
+        title: 'Course Event 1',
+        start: '2026-09-16T10:00:00Z',
+        end: '2026-09-16T11:00:00Z',
+      },
+      {
+        id: '_3_1',
+        type: 'Course',
+        calendarId: '_1_1',
+        title: 'Course Event 2',
+        start: '2026-09-17T10:00:00Z',
+        end: '2026-09-17T11:00:00Z',
+      },
+      {
+        id: '_4_1',
+        type: 'OfficeHours',
+        calendarId: '_1_1',
+        title: 'Office Hours',
+        start: '2026-09-18T14:00:00Z',
+        end: '2026-09-18T15:00:00Z',
+      },
+    ];
+
+    aggregateDDL([{ course: course1, items }], {
+      since: '2026-09-01T00:00:00Z',
+      until: '2026-09-30T23:59:59Z',
+    });
+
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Filtered 2 Course, 1 OfficeHours'),
+    );
+
+    consoleInfoSpy.mockRestore();
+  });
+});
+
+describe('SUPPORTED_ASSIGNMENT_TYPES', () => {
+  it('只包含 GradebookColumn', () => {
+    expect(SUPPORTED_ASSIGNMENT_TYPES.has('GradebookColumn')).toBe(true);
+    expect(SUPPORTED_ASSIGNMENT_TYPES.has('Course')).toBe(false);
+    expect(SUPPORTED_ASSIGNMENT_TYPES.has('OfficeHours')).toBe(false);
+    expect(SUPPORTED_ASSIGNMENT_TYPES.has('Institution')).toBe(false);
+  });
+});
+
+describe('isAssignmentType', () => {
+  it('只有 GradebookColumn 返回 true', () => {
+    expect(isAssignmentType('GradebookColumn')).toBe(true);
+    expect(isAssignmentType('Course')).toBe(false);
+    expect(isAssignmentType('OfficeHours')).toBe(false);
+    expect(isAssignmentType('Institution')).toBe(false);
   });
 });
 

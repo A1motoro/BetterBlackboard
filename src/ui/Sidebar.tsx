@@ -86,6 +86,13 @@ interface State {
   ddlAssignments: Assignment[];
   ddlLoading: boolean;
   ddlLastRefresh: number | null;
+  ddlFilterCounts: {
+    GradebookColumn: number;
+    Course: number;
+    OfficeHours: number;
+    Institution: number;
+    unknown: number;
+  } | null;
 }
 
 type Action =
@@ -103,7 +110,17 @@ type Action =
   | { type: 'showDiff'; preview: DiffPreview }
   | { type: 'hideDiff' }
   | { type: 'setViewMode'; mode: 'files' | 'ddl' }
-  | { type: 'ddlLoaded'; assignments: Assignment[] }
+  | {
+      type: 'ddlLoaded';
+      assignments: Assignment[];
+      filterCounts?: {
+        GradebookColumn: number;
+        Course: number;
+        OfficeHours: number;
+        Institution: number;
+        unknown: number;
+      };
+    }
   | { type: 'ddlLoading'; value: boolean };
 
 const initialState: State = {
@@ -125,6 +142,7 @@ const initialState: State = {
   ddlAssignments: [],
   ddlLoading: false,
   ddlLastRefresh: null,
+  ddlFilterCounts: null,
 };
 
 function reducer(state: State, action: Action): State {
@@ -180,6 +198,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         ddlAssignments: action.assignments,
+        ddlFilterCounts: action.filterCounts ?? null,
         ddlLoading: false,
         ddlLastRefresh: Date.now(),
       };
@@ -568,7 +587,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
               course.pk1,
               timeRange.since,
               timeRange.until,
-              'GradebookColumn',
+              undefined,
               controller.signal,
             );
             return { course, items };
@@ -580,7 +599,14 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
       );
 
       const aggregated = aggregateDDL(courseItems, timeRange);
-      dispatch({ type: 'ddlLoaded', assignments: aggregated.assignments });
+      const action: Action = {
+        type: 'ddlLoaded',
+        assignments: aggregated.assignments,
+        ...(aggregated.filterCounts
+          ? { filterCounts: aggregated.filterCounts }
+          : {}),
+      };
+      dispatch(action);
     } catch (error) {
       console.error('加载 DDL 失败:', error);
       dispatch({ type: 'ddlLoading', value: false });
@@ -816,6 +842,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
                 loading={state.ddlLoading}
                 onRefresh={loadDDL}
                 lastRefresh={state.ddlLastRefresh}
+                filterCounts={state.ddlFilterCounts}
               />
             </div>
           )}

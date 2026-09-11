@@ -140,4 +140,11 @@ export interface AggregatedDDL {
     since: string;
     until: string;
   };
+  filterCounts?: {
+    GradebookColumn: number;
+    Course: number;
+    OfficeHours: number;
+    Institution: number;
+    unknown: number;
+  };
 }
