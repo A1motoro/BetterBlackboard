@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  CalendarItem,
-  CalendarItemType,
-  Course,
-} from '../src/core/types';
+import type { CalendarItem, CalendarItemType, Course } from '../src/core/types';
 import {
   aggregateDDL,
   calendarItemToAssignment,
