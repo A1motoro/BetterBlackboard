@@ -18,7 +18,8 @@ class FixtureTransport implements ApiTransport {
 
 describe('BlackboardClient', () => {
   it('映射课程 ID 字段', async () => {
-    const path = '/learn/api/public/v1/courses/_17458_1';
+    const path =
+      '/learn/api/public/v1/courses/_17458_1?fields=id,courseId,name,ultraStatus,termId,availability';
     const transport = new FixtureTransport({
       [path]: {
         id: '_17458_1',
@@ -171,9 +172,63 @@ describe('BlackboardClient', () => {
 
     const courses = await new BlackboardClient(transport).listMyCourses();
     expect(courses.map((course) => course.name)).toEqual([
-      'AIE2001:Rationality',
       'PHY1001:Mechanics_L01',
+      'AIE2001:Rationality',
     ]);
+  });
+
+  it('过滤可用课程', async () => {
+    const path =
+      '/learn/api/public/v1/users/me/courses?expand=course&limit=100&availability.available=Yes';
+    const transport = new FixtureTransport({
+      [path]: {
+        results: [
+          {
+            courseId: '_1_1',
+            course: {
+              id: '_1_1',
+              courseId: 'AIE2001',
+              name: 'AIE2001:Rationality',
+              ultraStatus: 'Classic',
+              availability: { available: 'Yes' },
+            },
+          },
+        ],
+      },
+    });
+
+    const courses = await new BlackboardClient(transport).listMyCourses({
+      availabilityFilter: 'Yes',
+    });
+    expect(courses).toHaveLength(1);
+    expect(courses[0]?.availability?.available).toBe('Yes');
+  });
+
+  it('映射课程的 term 和 availability 字段', async () => {
+    const path =
+      '/learn/api/public/v1/courses/_1_1?fields=id,courseId,name,ultraStatus,termId,availability';
+    const transport = new FixtureTransport({
+      [path]: {
+        id: '_1_1',
+        courseId: 'AIE2001',
+        name: 'AIE2001:Rationality',
+        ultraStatus: 'Classic',
+        termId: '_2026_T1',
+        availability: {
+          available: 'Yes',
+          duration: {
+            type: 'Term',
+            start: '2026-09-01T00:00:00.000Z',
+            end: '2026-12-31T23:59:59.999Z',
+          },
+        },
+      },
+    });
+
+    const course = await new BlackboardClient(transport).getCourse('_1_1');
+    expect(course.termId).toBe('_2026_T1');
+    expect(course.availability?.available).toBe('Yes');
+    expect(course.availability?.duration?.type).toBe('Term');
   });
 
   it('从课程根节点加载整课内容', async () => {

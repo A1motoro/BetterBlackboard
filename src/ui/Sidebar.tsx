@@ -223,7 +223,10 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all([
-      client.listMyCourses(controller.signal),
+      client.listMyCourses({
+        availabilityFilter: 'Yes',
+        signal: controller.signal,
+      }),
       send<CourseTrackingSnapshot>({
         v: 1,
         type: 'courses.tracking.get',
@@ -356,6 +359,17 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
       dispatch({ type: 'tasks', tasks: result.tasks });
       dispatch({ type: 'notice', notice: enqueueNotice(result) });
     })()
+      .catch(reportFailure)
+      .finally(() => dispatch({ type: 'busy', coursePk1: null }));
+  };
+
+  const downloadWholeCourse = (course: Course): void => {
+    dispatch({ type: 'busy', coursePk1: course.pk1 });
+    void syncCourse(course)
+      .then((result) => {
+        dispatch({ type: 'tasks', tasks: result.tasks });
+        dispatch({ type: 'notice', notice: enqueueNotice(result) });
+      })
       .catch(reportFailure)
       .finally(() => dispatch({ type: 'busy', coursePk1: null }));
   };
@@ -527,6 +541,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
           syncing={state.syncing}
           onToggle={toggleTrack}
           onSyncNow={() => syncTracked(state.courses)}
+          onDownloadWholeCourse={downloadWholeCourse}
         />
       )}
 

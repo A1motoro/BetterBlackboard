@@ -1,5 +1,4 @@
 import type { Attachment, ContentNode, Course } from '../../core/types';
-import { uniqueCourses, type CourseMembershipRecord } from '../../core/courses';
 import type { ApiTransport } from './transport';
 
 interface ApiPage<T> {
@@ -14,6 +13,16 @@ interface RawCourse {
   courseId?: string;
   name?: string;
   ultraStatus?: string;
+  termId?: string;
+  availability?: {
+    available?: 'Yes' | 'No' | 'Disabled';
+    duration?: {
+      type?: string;
+      start?: string;
+      end?: string;
+      daysOfUse?: number;
+    };
+  };
 }
 
 interface RawContent {
@@ -79,60 +88,57 @@ export class BlackboardClient {
 
   async getCourse(coursePk1: string, signal?: AbortSignal): Promise<Course> {
     const raw = await this.request<RawCourse>(
-      `/learn/api/public/v1/courses/${encodeURIComponent(coursePk1)}`,
+      `/learn/api/public/v1/courses/${encodeURIComponent(coursePk1)}?fields=id,courseId,name,ultraStatus,termId,availability`,
       signal,
     );
+    return this.mapCourse(raw);
+  }
+
+  private mapCourse(raw: RawCourse): Course {
     return {
       pk1: raw.id,
       batchUid: raw.courseId ?? '',
       name: raw.name ?? raw.courseId ?? raw.id,
       ultraStatus: raw.ultraStatus ?? 'Unknown',
+      ...(raw.termId ? { termId: raw.termId } : {}),
+      ...(raw.availability?.available
+        ? {
+            availability: {
+              available: raw.availability.available,
+              ...(raw.availability.duration
+                ? { duration: raw.availability.duration }
+                : {}),
+            },
+          }
+        : {}),
     };
   }
 
-  async listMyCourses(signal?: AbortSignal): Promise<Course[]> {
+  async listMyCourses(options?: {
+    availabilityFilter?: 'Yes' | 'No' | 'Disabled';
+    signal?: AbortSignal;
+  }): Promise<Course[]> {
+    const availabilityParam = options?.availabilityFilter
+      ? `&availability.available=${options.availabilityFilter}`
+      : '';
     const rows = await this.getAll<RawMembership>(
-      '/learn/api/public/v1/users/me/courses?expand=course&limit=100',
-      signal,
+      `/learn/api/public/v1/users/me/courses?expand=course&limit=100${availabilityParam}`,
+      options?.signal,
     );
-    const records: CourseMembershipRecord[] = rows.map((row) => {
-      const course = row.course;
-      const pk1 = course?.id ?? row.courseId ?? '';
-      return {
-        coursePk1: pk1,
-        batchUid: course?.courseId ?? '',
-        name: course?.name ?? course?.courseId ?? pk1,
-        ultraStatus: course?.ultraStatus ?? 'Unknown',
-      };
-    });
 
-    const courses = uniqueCourses(records);
-    const unnamed = courses.filter(
-      (course) => !course.name || course.name === course.pk1,
-    );
-    if (unnamed.length === 0) return courses;
-
-    const resolved = await Promise.all(
-      unnamed.map(async (course) => {
-        try {
-          return await this.getCourse(course.pk1, signal);
-        } catch {
-          return course;
-        }
-      }),
-    );
-    const byPk1 = new Map(resolved.map((course) => [course.pk1, course]));
-    return uniqueCourses(
-      courses.map((course) => {
-        const next = byPk1.get(course.pk1) ?? course;
+    return rows.map((row) => {
+      const raw = row.course;
+      if (!raw) {
+        const pk1 = row.courseId ?? '';
         return {
-          coursePk1: next.pk1,
-          batchUid: next.batchUid,
-          name: next.name,
-          ultraStatus: next.ultraStatus,
+          pk1,
+          batchUid: '',
+          name: pk1,
+          ultraStatus: 'Unknown',
         };
-      }),
-    );
+      }
+      return this.mapCourse(raw);
+    });
   }
 
   async loadAttachments(
