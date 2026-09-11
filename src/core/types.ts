@@ -1,8 +1,20 @@
+export interface CourseAvailability {
+  available: 'Yes' | 'No' | 'Disabled';
+  duration?: {
+    type?: string;
+    start?: string;
+    end?: string;
+    daysOfUse?: number;
+  };
+}
+
 export interface Course {
   pk1: string;
   batchUid: string;
   name: string;
   ultraStatus: string;
+  termId?: string;
+  availability?: CourseAvailability;
 }
 
 export interface CourseContext {
