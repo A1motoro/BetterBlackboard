@@ -106,9 +106,7 @@ export function filterCurrentTermCourses(
  * @param courses 课程列表
  * @returns 按 termId 分组的课程 Map，没有 termId 的课程归入 'unknown' 键
  */
-export function groupCoursesByTerm(
-  courses: Course[],
-): Map<string, Course[]> {
+export function groupCoursesByTerm(courses: Course[]): Map<string, Course[]> {
   const groups = new Map<string, Course[]>();
 
   for (const course of courses) {

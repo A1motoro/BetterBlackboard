@@ -117,12 +117,18 @@ describe('isCurrentTerm', () => {
 
     // 使用 7 天宽容期，应该返回 false
     expect(
-      isCurrentTerm(course, { referenceTime: now, gracePeriodMs: 7 * 24 * 60 * 60 * 1000 }),
+      isCurrentTerm(course, {
+        referenceTime: now,
+        gracePeriodMs: 7 * 24 * 60 * 60 * 1000,
+      }),
     ).toBe(false);
 
     // 使用 14 天宽容期，应该返回 true
     expect(
-      isCurrentTerm(course, { referenceTime: now, gracePeriodMs: 14 * 24 * 60 * 60 * 1000 }),
+      isCurrentTerm(course, {
+        referenceTime: now,
+        gracePeriodMs: 14 * 24 * 60 * 60 * 1000,
+      }),
     ).toBe(true);
   });
 
