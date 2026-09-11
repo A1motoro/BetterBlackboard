@@ -61,6 +61,29 @@ export interface CoursesTrackingHomeSyncedMessage {
   requestId: string;
 }
 
+export interface HistoryGetMessage {
+  v: 1;
+  type: 'history.get';
+  requestId: string;
+  coursePk1: string;
+  contentPk1: string;
+}
+
+export interface HistorySaveMessage {
+  v: 1;
+  type: 'history.save';
+  requestId: string;
+  history: unknown;
+}
+
+export interface HistoryClearMessage {
+  v: 1;
+  type: 'history.clear';
+  requestId: string;
+  coursePk1: string;
+  contentPk1: string;
+}
+
 export type ExtensionRequest =
   | ApiRequestMessage
   | DownloadsEnqueueMessage
@@ -69,7 +92,10 @@ export type ExtensionRequest =
   | SiteInjectMessage
   | CoursesTrackingGetMessage
   | CoursesTrackingSetMessage
-  | CoursesTrackingHomeSyncedMessage;
+  | CoursesTrackingHomeSyncedMessage
+  | HistoryGetMessage
+  | HistorySaveMessage
+  | HistoryClearMessage;
 
 export type ExtensionResponse<T = unknown> =
   { ok: true; data: T } | { ok: false; error: SerializedBbError };
@@ -96,6 +122,9 @@ const REQUEST_TYPES = new Set<string>([
   'courses.tracking.get',
   'courses.tracking.set',
   'courses.tracking.homeSynced',
+  'history.get',
+  'history.save',
+  'history.clear',
 ] satisfies ExtensionRequest['type'][]);
 
 export function requestId(): string {

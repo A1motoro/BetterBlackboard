@@ -8,6 +8,19 @@ import {
   HOME_SYNC_MIN_INTERVAL_MS,
   type CourseTrackingSnapshot,
 } from '../core/courses';
+import { createContentSnapshot } from '../core/fingerprint';
+import {
+  detectDownloadDiff,
+  addDownloadRecords,
+  pruneHistory,
+  type CourseDownloadHistory,
+  type DownloadHistoryRecord,
+} from '../core/download-history';
+import {
+  createDiffPreview,
+  filterDownloadableItems,
+  type DiffPreview,
+} from '../core/diff-preview';
 import {
   buildAttachmentKeyIndex,
   collectAttachmentKeys,
@@ -37,6 +50,7 @@ import {
 import { ContentTree } from './ContentTree';
 import { CourseTracker } from './CourseTracker';
 import { DownloadPanel } from './DownloadPanel';
+import { DiffPreviewComponent } from './DiffPreview';
 
 const POLL_INTERVAL = 1_200;
 const PENDING_STATUSES = new Set<DownloadTask['status']>([
@@ -63,6 +77,8 @@ interface State {
   syncing: boolean;
   loadError: string | null;
   notice: Notice | null;
+  diffPreview: DiffPreview | null;
+  showingDiff: boolean;
 }
 
 type Action =
@@ -76,7 +92,9 @@ type Action =
   | { type: 'courses'; courses: Course[] }
   | { type: 'tracking'; tracked: string[] }
   | { type: 'busy'; coursePk1: string | null }
-  | { type: 'syncing'; value: boolean };
+  | { type: 'syncing'; value: boolean }
+  | { type: 'showDiff'; preview: DiffPreview }
+  | { type: 'hideDiff' };
 
 const initialState: State = {
   loading: true,
@@ -91,6 +109,8 @@ const initialState: State = {
   syncing: false,
   loadError: null,
   notice: null,
+  diffPreview: null,
+  showingDiff: false,
 };
 
 function reducer(state: State, action: Action): State {
@@ -103,6 +123,8 @@ function reducer(state: State, action: Action): State {
         nodes: action.nodes,
         selected: new Set(),
         loadError: null,
+        showingDiff: false,
+        diffPreview: null,
       };
     case 'failed':
       return { ...state, loading: false, loadError: action.message };
@@ -130,6 +152,14 @@ function reducer(state: State, action: Action): State {
       return { ...state, busyPk1: action.coursePk1 };
     case 'syncing':
       return { ...state, syncing: action.value };
+    case 'showDiff':
+      return {
+        ...state,
+        showingDiff: true,
+        diffPreview: action.preview,
+      };
+    case 'hideDiff':
+      return { ...state, showingDiff: false, diffPreview: null };
   }
 }
 
@@ -413,11 +443,150 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
     [state.tracked, syncCourse],
   );
 
+  const analyzeIncremental = useCallback(
+    async (
+      forceFullSync: boolean = false,
+    ): Promise<{
+      preview: DiffPreview;
+      downloadableKeys: Set<string>;
+    } | null> => {
+      if (!context || !state.course) return null;
+
+      const history = await send<CourseDownloadHistory>({
+        v: 1,
+        type: 'history.get',
+        requestId: requestId(),
+        coursePk1: context.coursePk1,
+        contentPk1: context.contentPk1,
+      });
+
+      const snapshot = createContentSnapshot(
+        context.coursePk1,
+        context.contentPk1,
+        state.nodes,
+      );
+
+      const diff = forceFullSync
+        ? {
+            added: snapshot.attachments,
+            modified: [],
+            removed: [],
+            unchanged: [],
+          }
+        : detectDownloadDiff(snapshot, history);
+
+      const preview = createDiffPreview(diff, state.nodes);
+      const downloadableItems = filterDownloadableItems(preview);
+      const downloadableKeys = new Set(
+        downloadableItems.map(
+          (item) =>
+            `${item.fingerprint.contentPk1}:${item.fingerprint.attachmentPk1}`,
+        ),
+      );
+
+      return { preview, downloadableKeys };
+    },
+    [context, state.course, state.nodes],
+  );
+
+  const recordHistory = useCallback(
+    async (tasks: DownloadTaskInput[]): Promise<void> => {
+      if (!context) return;
+
+      const history = await send<CourseDownloadHistory>({
+        v: 1,
+        type: 'history.get',
+        requestId: requestId(),
+        coursePk1: context.coursePk1,
+        contentPk1: context.contentPk1,
+      });
+
+      const now = Date.now();
+      const records: DownloadHistoryRecord[] = tasks.map((task) => ({
+        fingerprint: {
+          attachmentPk1: task.attachmentPk1,
+          contentPk1: task.contentPk1,
+          fileName: task.sourceFileName,
+          timestamp: now,
+        },
+        targetPath: task.targetPath,
+        completedAt: now,
+        success: true,
+      }));
+
+      let updatedHistory = addDownloadRecords(history, records);
+      updatedHistory = pruneHistory(updatedHistory);
+
+      await send({
+        v: 1,
+        type: 'history.save',
+        requestId: requestId(),
+        history: updatedHistory,
+      });
+    },
+    [context],
+  );
+
   const startDownload = (): void => {
     if (!context || !state.course) return;
-    void enqueue(
-      createDownloadPlan(context, state.course, state.nodes, state.selected),
-    ).catch(reportFailure);
+
+    void (async () => {
+      const result = await analyzeIncremental(false);
+      if (!result) return;
+
+      const { preview, downloadableKeys } = result;
+
+      if (downloadableKeys.size === 0) {
+        dispatch({ type: 'showDiff', preview });
+        return;
+      }
+
+      const tasks = createDownloadPlan(
+        context,
+        state.course!,
+        state.nodes,
+        downloadableKeys,
+      );
+
+      await enqueue(tasks);
+      await recordHistory(tasks);
+    })().catch(reportFailure);
+  };
+
+  const startDownloadWithDiff = (): void => {
+    if (!context || !state.course || !state.diffPreview) return;
+
+    void (async () => {
+      const downloadableItems = filterDownloadableItems(state.diffPreview!);
+      const downloadableKeys = new Set(
+        downloadableItems.map(
+          (item) =>
+            `${item.fingerprint.contentPk1}:${item.fingerprint.attachmentPk1}`,
+        ),
+      );
+
+      const tasks = createDownloadPlan(
+        context,
+        state.course!,
+        state.nodes,
+        downloadableKeys,
+      );
+
+      await enqueue(tasks);
+      await recordHistory(tasks);
+      dispatch({ type: 'hideDiff' });
+    })().catch(reportFailure);
+  };
+
+  const forceFullSync = (): void => {
+    if (!context || !state.course) return;
+
+    void (async () => {
+      const result = await analyzeIncremental(true);
+      if (!result) return;
+
+      dispatch({ type: 'showDiff', preview: result.preview });
+    })().catch(reportFailure);
   };
 
   const cancelDownload = (taskId: string): void => {
@@ -597,16 +766,27 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
               </p>
             )}
           </div>
-          <div className="shrink-0 border-t border-slate-200 p-3">
-            <button
-              type="button"
-              disabled={state.selected.size === 0}
-              className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-              onClick={startDownload}
-            >
-              下载所选文件
-            </button>
-          </div>
+          {state.showingDiff && state.diffPreview ? (
+            <div className="shrink-0 border-t border-slate-200 p-3">
+              <DiffPreviewComponent
+                preview={state.diffPreview}
+                onDownload={startDownloadWithDiff}
+                onCancel={() => dispatch({ type: 'hideDiff' })}
+                onForceFullSync={forceFullSync}
+              />
+            </div>
+          ) : (
+            <div className="shrink-0 border-t border-slate-200 p-3">
+              <button
+                type="button"
+                disabled={state.selected.size === 0}
+                className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                onClick={startDownload}
+              >
+                增量下载
+              </button>
+            </div>
+          )}
         </div>
       )}
 
