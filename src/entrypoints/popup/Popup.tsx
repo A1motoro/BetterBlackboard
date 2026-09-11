@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  CUHKSZ_ORIGIN,
-  CUHKSZ_PERMISSION,
-  matchesCuhksz,
-} from '../../adapters/cuhksz';
+import { findAdapter } from '../../adapters/registry';
+import type { SchoolAdapter } from '../../adapters/types';
+import type { SerializedBbError } from '../../core/types';
 import {
   requestId,
   type ExtensionResponse,
@@ -12,6 +10,8 @@ import {
 interface ActiveTab {
   id: number;
   url: string;
+  origin: string;
+  adapter: SchoolAdapter;
 }
 
 export function Popup() {
@@ -37,20 +37,21 @@ export function Popup() {
           return;
         }
 
-        if (!matchesCuhksz(url)) {
-          setMessage('请先打开 CUHK(SZ) Blackboard 页面');
+        const adapter = findAdapter(url);
+        if (!adapter) {
+          setMessage('此页面不是支持的 Blackboard 站点');
           return;
         }
 
-        setTab({ id: active.id, url: active.url });
+        setTab({ id: active.id, url: active.url, origin: url.origin, adapter });
         const hasPermission = await browser.permissions.contains({
-          origins: [CUHKSZ_PERMISSION],
+          origins: [`${adapter.origin}/*`],
         });
         setAuthorized(hasPermission);
         setMessage(
           hasPermission
-            ? '站点已授权，课程内容页会自动打开侧栏'
-            : '需要授权访问当前 Blackboard 站点',
+            ? '站点已授权,课程内容页会自动打开侧栏'
+            : `需要授权访问 ${adapter.displayName} Blackboard 站点`,
         );
       });
   }, []);
@@ -62,7 +63,7 @@ export function Popup() {
       const granted =
         authorized ||
         (await browser.permissions.request({
-          origins: [CUHKSZ_PERMISSION],
+          origins: [`${tab.adapter.origin}/*`],
         }));
       if (!granted) {
         setMessage('未授予站点权限');
@@ -75,15 +76,19 @@ export function Popup() {
           type: 'site.inject',
           requestId: requestId(),
           tabId: tab.id,
-          origin: CUHKSZ_ORIGIN,
+          origin: tab.origin,
         });
       if (!response.ok) throw new Error(response.error.message);
 
       setAuthorized(true);
       setMessage('侧栏已打开');
       window.setTimeout(() => window.close(), 350);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : '启用失败');
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : ((error as SerializedBbError).message ?? '启用失败');
+      setMessage(msg);
     } finally {
       setBusy(false);
     }

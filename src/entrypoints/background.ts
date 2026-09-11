@@ -1,4 +1,4 @@
-import { CUHKSZ_ORIGIN, CUHKSZ_PERMISSION } from '../adapters/cuhksz';
+import { isOriginAllowed, findAdapter } from '../adapters/registry';
 import { BbError, type SerializedBbError } from '../core/types';
 import type { CourseDownloadHistory } from '../core/download-history';
 import { fetchApiJson } from '../infrastructure/blackboard/transport';
@@ -14,7 +14,7 @@ import {
   type ExtensionResponse,
 } from '../infrastructure/messages';
 
-const CONTENT_SCRIPT_ID = 'better-blackboard-cuhksz';
+const CONTENT_SCRIPT_ID = 'better-blackboard-content';
 const CONTENT_SCRIPT_FILE = '/content-scripts/content.js' as const;
 
 function serializeError(error: unknown): SerializedBbError {
@@ -32,13 +32,19 @@ function serializeError(error: unknown): SerializedBbError {
 }
 
 async function requireAuthorizedOrigin(origin: string): Promise<void> {
-  if (origin !== CUHKSZ_ORIGIN)
+  if (!isOriginAllowed(origin)) {
     throw new BbError('access_denied', '不支持此站点');
+  }
+  const adapter = findAdapter(origin);
+  if (!adapter) {
+    throw new BbError('access_denied', '无法找到匹配的学校 adapter');
+  }
   const allowed = await browser.permissions.contains({
-    origins: [CUHKSZ_PERMISSION],
+    origins: [`${origin}/*`],
   });
-  if (!allowed)
+  if (!allowed) {
     throw new BbError('access_denied', '尚未授权此 Blackboard 站点');
+  }
 }
 
 async function ensureContentScriptRegistered(origin: string): Promise<void> {
@@ -75,26 +81,34 @@ async function injectContentScript(
   });
 }
 
-async function activateAuthorizedSite(): Promise<void> {
-  const authorized = await browser.permissions.contains({
-    origins: [CUHKSZ_PERMISSION],
-  });
-  if (!authorized) return;
+async function activateAuthorizedSites(): Promise<void> {
+  const { origins: ALL_ORIGINS } = await browser.permissions.getAll();
+  if (!ALL_ORIGINS || ALL_ORIGINS.length === 0) return;
 
-  await ensureContentScriptRegistered(CUHKSZ_ORIGIN);
-  const tabs = await browser.tabs.query({ url: [CUHKSZ_PERMISSION] });
-  await Promise.all(
-    tabs
-      .filter((tab) => tab.id !== undefined)
-      .map((tab) =>
-        browser.scripting
-          .executeScript({
-            target: { tabId: tab.id! },
-            files: [CONTENT_SCRIPT_FILE],
-          })
-          .catch(() => undefined),
-      ),
-  );
+  for (const permission of ALL_ORIGINS) {
+    try {
+      const url = new URL(permission);
+      const origin = url.origin;
+      if (!isOriginAllowed(origin)) continue;
+
+      await ensureContentScriptRegistered(origin);
+      const tabs = await browser.tabs.query({ url: [permission] });
+      await Promise.all(
+        tabs
+          .filter((tab) => tab.id !== undefined)
+          .map((tab) =>
+            browser.scripting
+              .executeScript({
+                target: { tabId: tab.id! },
+                files: [CONTENT_SCRIPT_FILE],
+              })
+              .catch(() => undefined),
+          ),
+      );
+    } catch {
+      // Ignore invalid permission patterns
+    }
+  }
 }
 
 export default defineBackground(() => {
@@ -102,7 +116,7 @@ export default defineBackground(() => {
   const historyStore: HistoryStore = new ChromeHistoryStore();
   const queue = new PersistentDownloadQueue(tracking);
   void queue.init();
-  void activateAuthorizedSite();
+  void activateAuthorizedSites();
 
   // MV3 only wakes a terminated service worker for listeners registered
   // synchronously during startup, so this must not move behind an await.
