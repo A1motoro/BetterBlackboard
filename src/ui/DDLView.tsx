@@ -82,6 +82,13 @@ interface DDLSectionProps {
   loading: boolean;
   onRefresh: () => void;
   lastRefresh: number | null;
+  filterCounts?: {
+    GradebookColumn: number;
+    Course: number;
+    OfficeHours: number;
+    Institution: number;
+    unknown: number;
+  } | null;
 }
 
 export function DDLSection({
@@ -89,6 +96,7 @@ export function DDLSection({
   loading,
   onRefresh,
   lastRefresh,
+  filterCounts,
 }: DDLSectionProps) {
   const now = Date.now();
   const thisWeek: Assignment[] = [];
@@ -118,6 +126,13 @@ export function DDLSection({
     ? `上次刷新: ${new Date(lastRefresh).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
     : '';
 
+  const hasFilteredItems =
+    filterCounts &&
+    (filterCounts.Course > 0 ||
+      filterCounts.OfficeHours > 0 ||
+      filterCounts.Institution > 0 ||
+      filterCounts.unknown > 0);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3">
@@ -134,6 +149,31 @@ export function DDLSection({
         </div>
         {lastRefreshText && (
           <p className="text-xs text-gray-500 mt-1">{lastRefreshText}</p>
+        )}
+        {hasFilteredItems && (
+          <div className="mt-2 text-xs text-gray-600">
+            <details className="cursor-pointer">
+              <summary className="hover:text-gray-900">
+                已过滤非作业项目 (点击查看详情)
+              </summary>
+              <div className="mt-1 ml-4 space-y-0.5">
+                {filterCounts.Course > 0 && (
+                  <div>课程事件: {filterCounts.Course}</div>
+                )}
+                {filterCounts.OfficeHours > 0 && (
+                  <div>答疑时间: {filterCounts.OfficeHours}</div>
+                )}
+                {filterCounts.Institution > 0 && (
+                  <div>机构事件: {filterCounts.Institution}</div>
+                )}
+                {filterCounts.unknown > 0 && (
+                  <div className="text-orange-600">
+                    未知类型: {filterCounts.unknown}
+                  </div>
+                )}
+              </div>
+            </details>
+          </div>
         )}
       </div>
 
