@@ -101,7 +101,7 @@ describe('增量同步集成测试', () => {
   it('文件名变化 - 标记为修改', () => {
     const oldNodes: ContentNode[] = [
       {
-        ...nodes[0],
+        ...nodes[0]!,
         attachments: [
           {
             pk1: '_att1_1',
@@ -132,7 +132,7 @@ describe('增量同步集成测试', () => {
 
     const newNodes: ContentNode[] = [
       {
-        ...nodes[0],
+        ...nodes[0]!,
         attachments: [
           {
             pk1: '_att1_1',
@@ -164,7 +164,7 @@ describe('增量同步集成测试', () => {
   it('新增和已存在文件混合', () => {
     const oldNodes: ContentNode[] = [
       {
-        ...nodes[0],
+        ...nodes[0]!,
         attachments: [nodes[0]!.attachments[0]!],
       },
     ];
