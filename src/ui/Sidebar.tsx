@@ -8,6 +8,10 @@ import {
   HOME_SYNC_MIN_INTERVAL_MS,
   type CourseTrackingSnapshot,
 } from '../core/courses';
+import {
+  aggregateDDL,
+  createTimeRange,
+} from '../core/ddl-aggregation';
 import { createContentSnapshot } from '../core/fingerprint';
 import {
   detectDownloadDiff,
@@ -29,6 +33,7 @@ import {
 } from '../core/download-plan';
 import {
   BbError,
+  type Assignment,
   type ContentNode,
   type Course,
   type DownloadTask,
@@ -49,6 +54,7 @@ import {
 } from '../infrastructure/messages';
 import { ContentTree } from './ContentTree';
 import { CourseTracker } from './CourseTracker';
+import { DDLSection } from './DDLView';
 import { DownloadPanel } from './DownloadPanel';
 import { DiffPreviewComponent } from './DiffPreview';
 
@@ -79,6 +85,10 @@ interface State {
   notice: Notice | null;
   diffPreview: DiffPreview | null;
   showingDiff: boolean;
+  viewMode: 'files' | 'ddl';
+  ddlAssignments: Assignment[];
+  ddlLoading: boolean;
+  ddlLastRefresh: number | null;
 }
 
 type Action =
@@ -94,7 +104,10 @@ type Action =
   | { type: 'busy'; coursePk1: string | null }
   | { type: 'syncing'; value: boolean }
   | { type: 'showDiff'; preview: DiffPreview }
-  | { type: 'hideDiff' };
+  | { type: 'hideDiff' }
+  | { type: 'setViewMode'; mode: 'files' | 'ddl' }
+  | { type: 'ddlLoaded'; assignments: Assignment[] }
+  | { type: 'ddlLoading'; value: boolean };
 
 const initialState: State = {
   loading: true,
@@ -111,6 +124,10 @@ const initialState: State = {
   notice: null,
   diffPreview: null,
   showingDiff: false,
+  viewMode: 'files',
+  ddlAssignments: [],
+  ddlLoading: false,
+  ddlLastRefresh: null,
 };
 
 function reducer(state: State, action: Action): State {
@@ -160,6 +177,17 @@ function reducer(state: State, action: Action): State {
       };
     case 'hideDiff':
       return { ...state, showingDiff: false, diffPreview: null };
+    case 'setViewMode':
+      return { ...state, viewMode: action.mode };
+    case 'ddlLoaded':
+      return {
+        ...state,
+        ddlAssignments: action.assignments,
+        ddlLoading: false,
+        ddlLastRefresh: Date.now(),
+      };
+    case 'ddlLoading':
+      return { ...state, ddlLoading: action.value };
   }
 }
 
@@ -527,6 +555,51 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
     [context],
   );
 
+  const loadDDL = useCallback(async (): Promise<void> => {
+    if (state.courses.length === 0) return;
+
+    dispatch({ type: 'ddlLoading', value: true });
+
+    try {
+      const timeRange = createTimeRange({ weeksAhead: 4 });
+      const controller = new AbortController();
+
+      const courseItems = await Promise.all(
+        state.courses.map(async (course) => {
+          try {
+            const items = await client.loadCalendarItems(
+              course.pk1,
+              timeRange.since,
+              timeRange.until,
+              'GradebookColumn',
+              controller.signal,
+            );
+            return { course, items };
+          } catch (error) {
+            console.warn(`无法加载课程 ${course.name} 的 DDL:`, error);
+            return { course, items: [] };
+          }
+        }),
+      );
+
+      const aggregated = aggregateDDL(courseItems, timeRange);
+      dispatch({ type: 'ddlLoaded', assignments: aggregated.assignments });
+    } catch (error) {
+      console.error('加载 DDL 失败:', error);
+      dispatch({ type: 'ddlLoading', value: false });
+    }
+  }, [state.courses, client]);
+
+  useEffect(() => {
+    if (
+      state.viewMode === 'ddl' &&
+      state.courses.length > 0 &&
+      !state.ddlLastRefresh
+    ) {
+      void loadDDL();
+    }
+  }, [state.viewMode, state.courses.length, state.ddlLastRefresh, loadDDL]);
+
   const startDownload = (): void => {
     if (!context || !state.course) return;
 
@@ -703,15 +776,53 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
       )}
 
       {!state.loading && !state.loadError && !context && (
-        <CourseTracker
-          courses={state.courses}
-          tracked={state.tracked}
-          busyPk1={state.busyPk1}
-          syncing={state.syncing}
-          onToggle={toggleTrack}
-          onSyncNow={() => syncTracked(state.courses)}
-          onDownloadWholeCourse={downloadWholeCourse}
-        />
+        <>
+          <div className="flex shrink-0 border-b border-slate-200">
+            <button
+              type="button"
+              className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                state.viewMode === 'files'
+                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              onClick={() => dispatch({ type: 'setViewMode', mode: 'files' })}
+            >
+              课程跟踪
+            </button>
+            <button
+              type="button"
+              className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                state.viewMode === 'ddl'
+                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+              onClick={() => dispatch({ type: 'setViewMode', mode: 'ddl' })}
+            >
+              DDL聚合
+            </button>
+          </div>
+
+          {state.viewMode === 'files' ? (
+            <CourseTracker
+              courses={state.courses}
+              tracked={state.tracked}
+              busyPk1={state.busyPk1}
+              syncing={state.syncing}
+              onToggle={toggleTrack}
+              onSyncNow={() => syncTracked(state.courses)}
+              onDownloadWholeCourse={downloadWholeCourse}
+            />
+          ) : (
+            <div className="flex-1 overflow-hidden">
+              <DDLSection
+                assignments={state.ddlAssignments}
+                loading={state.ddlLoading}
+                onRefresh={loadDDL}
+                lastRefresh={state.ddlLastRefresh}
+              />
+            </div>
+          )}
+        </>
       )}
 
       {!state.loading && !state.loadError && context && (

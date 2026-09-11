@@ -94,3 +94,50 @@ export class BbError extends Error {
     this.name = 'BbError';
   }
 }
+
+export type CalendarItemType =
+  'GradebookColumn' | 'Course' | 'OfficeHours' | 'Institution';
+
+export interface CalendarItem {
+  id: string;
+  type: CalendarItemType;
+  calendarId: string;
+  calendarName?: string;
+  title: string;
+  description?: string;
+  location?: string;
+  start: string;
+  end: string;
+  modified?: string | null;
+  color?: string;
+  disableResizing?: boolean;
+  createdByUserId?: string | null;
+  dynamicCalendarItemProps?: {
+    attemptable?: boolean;
+    categoryId?: string;
+    dateRangeLimited?: boolean;
+    eventType?: string;
+    gradable?: boolean;
+  };
+}
+
+export interface Assignment {
+  id: string;
+  coursePk1: string;
+  courseName: string;
+  title: string;
+  dueDate: string;
+  eventType?: string;
+  categoryId?: string;
+  attemptable: boolean;
+  gradable: boolean;
+}
+
+export interface AggregatedDDL {
+  assignments: Assignment[];
+  totalCount: number;
+  timeRange: {
+    since: string;
+    until: string;
+  };
+}

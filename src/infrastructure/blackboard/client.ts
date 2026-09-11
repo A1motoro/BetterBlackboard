@@ -1,4 +1,9 @@
-import type { Attachment, ContentNode, Course } from '../../core/types';
+import type {
+  Attachment,
+  CalendarItem,
+  ContentNode,
+  Course,
+} from '../../core/types';
 import type { ApiTransport } from './transport';
 
 interface ApiPage<T> {
@@ -253,6 +258,22 @@ export class BlackboardClient {
     }
 
     return results;
+  }
+
+  async loadCalendarItems(
+    coursePk1: string,
+    since: string,
+    until: string,
+    type?: 'GradebookColumn' | 'Course' | 'OfficeHours',
+    signal?: AbortSignal,
+  ): Promise<CalendarItem[]> {
+    const typeParam = type ? `&type=${type}` : '';
+    const path =
+      `/learn/api/public/v1/calendars/items?courseId=${encodeURIComponent(coursePk1)}` +
+      `&since=${encodeURIComponent(since)}&until=${encodeURIComponent(until)}${typeParam}`;
+
+    const raw = await this.getAll<CalendarItem>(path, signal);
+    return raw;
   }
 
   private request<T>(path: string, signal?: AbortSignal): Promise<T> {
