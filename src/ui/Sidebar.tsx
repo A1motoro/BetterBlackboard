@@ -8,10 +8,7 @@ import {
   HOME_SYNC_MIN_INTERVAL_MS,
   type CourseTrackingSnapshot,
 } from '../core/courses';
-import {
-  aggregateDDL,
-  createTimeRange,
-} from '../core/ddl-aggregation';
+import { aggregateDDL, createTimeRange } from '../core/ddl-aggregation';
 import { createContentSnapshot } from '../core/fingerprint';
 import {
   detectDownloadDiff,
