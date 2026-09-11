@@ -145,7 +145,7 @@ export async function recordDownloadCompletion(
   // 创建下载记录
   const now = Date.now();
   const records: DownloadHistoryRecord[] = [];
-  
+
   for (const task of tasks) {
     const fp: AttachmentFingerprint = {
       attachmentPk1: String(task.attachmentPk1),

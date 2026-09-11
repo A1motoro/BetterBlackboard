@@ -105,7 +105,9 @@ export class MemoryHistoryStore implements HistoryStore {
   ): Promise<CourseDownloadHistory> {
     const key = buildHistoryKey(coursePk1, rootContentPk1);
     const stored = this.storage.get(key);
-    return Promise.resolve(stored ?? createEmptyHistory(coursePk1, rootContentPk1));
+    return Promise.resolve(
+      stored ?? createEmptyHistory(coursePk1, rootContentPk1),
+    );
   }
 
   save(history: CourseDownloadHistory): Promise<void> {
