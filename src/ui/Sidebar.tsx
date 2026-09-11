@@ -26,13 +26,13 @@ import {
   buildAttachmentKeyIndex,
   collectAttachmentKeys,
   createDownloadPlan,
-  createFullDownloadPlan,
 } from '../core/download-plan';
 import {
   BbError,
   type Assignment,
   type ContentNode,
   type Course,
+  type CourseContext,
   type DownloadTask,
   type DownloadTaskInput,
 } from '../core/types';
@@ -397,20 +397,72 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
   const syncCourse = useCallback(
     async (course: Course): Promise<EnqueueResult> => {
       const nodes = await client.loadCourseContent(course.pk1);
-      return send<EnqueueResult>({
+      const courseContext: CourseContext = {
+        origin: CUHKSZ_ORIGIN,
+        coursePk1: course.pk1,
+        contentPk1: course.pk1,
+      };
+
+      const history = await send<CourseDownloadHistory>({
+        v: 1,
+        type: 'history.get',
+        requestId: requestId(),
+        coursePk1: course.pk1,
+        contentPk1: course.pk1,
+      });
+
+      const snapshot = createContentSnapshot(course.pk1, course.pk1, nodes);
+      const diff = detectDownloadDiff(snapshot, history);
+      const downloadableItems = filterDownloadableItems(
+        createDiffPreview(diff, nodes),
+      );
+      const downloadableKeys = new Set(
+        downloadableItems.map(
+          (item) =>
+            `${item.fingerprint.contentPk1}:${item.fingerprint.attachmentPk1}`,
+        ),
+      );
+
+      const tasks = createDownloadPlan(
+        courseContext,
+        course,
+        nodes,
+        downloadableKeys,
+      );
+
+      const result = await send<EnqueueResult>({
         v: 1,
         type: 'downloads.enqueue',
         requestId: requestId(),
-        tasks: createFullDownloadPlan(
-          {
-            origin: CUHKSZ_ORIGIN,
-            coursePk1: course.pk1,
-            contentPk1: course.pk1,
-          },
-          course,
-          nodes,
-        ),
+        tasks,
       });
+
+      if (result.accepted > 0) {
+        const now = Date.now();
+        const records: DownloadHistoryRecord[] = tasks.map((task) => ({
+          fingerprint: {
+            attachmentPk1: task.attachmentPk1,
+            contentPk1: task.contentPk1,
+            fileName: task.sourceFileName,
+            timestamp: now,
+          },
+          targetPath: task.targetPath,
+          completedAt: now,
+          success: true,
+        }));
+
+        let updatedHistory = addDownloadRecords(history, records);
+        updatedHistory = pruneHistory(updatedHistory);
+
+        await send({
+          v: 1,
+          type: 'history.save',
+          requestId: requestId(),
+          history: updatedHistory,
+        });
+      }
+
+      return result;
     },
     [client],
   );
