@@ -1,0 +1,130 @@
+/**
+ * THIS IS A TEMPLATE FILE, NOT A WORKING ADAPTER
+ *
+ * This file serves as a concrete example for adding new school support.
+ * Copy this template, rename it to {schoolid}.ts, and fill in the real values.
+ *
+ * See docs/ADDING_A_SCHOOL.md for complete instructions.
+ */
+
+import type { SchoolAdapter, CourseContext } from './types';
+import type { Course } from '../core/types';
+import { sanitizeSegment } from '../core/naming';
+
+// STEP 1: Define the school's Blackboard origin
+const EXAMPLE_ORIGIN = 'https://bb.example.edu';
+
+/**
+ * Adapter for Example University.
+ *
+ * ## Verified Characteristics
+ * ⚠️ THIS ADAPTER HAS NOT BEEN VERIFIED WITH A REAL BLACKBOARD INSTANCE
+ *
+ * Before using this adapter:
+ * 1. Verify REST API availability at /learn/api/public/v1
+ * 2. Test URL patterns with real course pages
+ * 3. Confirm attachment endpoints return complete metadata
+ * 4. Add test fixtures with real API responses (anonymized)
+ * 5. Update this documentation with actual observations
+ *
+ * ## Known Limitations
+ * - Not tested with any real Blackboard instance
+ * - URL patterns are hypothetical
+ * - REST API behavior unknown
+ *
+ * ## Permission Requirements
+ * - optional_host_permissions: https://bb.example.edu/*
+ */
+export const exampleSchoolAdapter: SchoolAdapter = {
+  // STEP 2: Unique ID (lowercase, URL-safe)
+  id: 'example',
+
+  // STEP 3: Display name shown in UI
+  displayName: 'Example University',
+
+  // STEP 4: Canonical origin
+  origin: EXAMPLE_ORIGIN,
+
+  // STEP 5: Implement URL matching
+  matches(url: URL): boolean {
+    return url.origin === EXAMPLE_ORIGIN;
+  },
+
+  // STEP 6: Configure API base path (usually standard)
+  apiBasePath: '/learn/api/public/v1',
+
+  // STEP 7: Parse course context from URL
+  parseCourseContext(url: URL): CourseContext | null {
+    // Standard Blackboard URL pattern:
+    // /webapps/blackboard/content/listContent.jsp?course_id=_123_1&content_id=_456_1
+
+    const coursePk1 = url.searchParams.get('course_id');
+    const contentPk1 = url.searchParams.get('content_id');
+
+    // Some schools may use different parameter names:
+    // const coursePk1 = url.searchParams.get('courseId') || url.searchParams.get('course_id');
+
+    if (!coursePk1 || !contentPk1) return null;
+
+    return {
+      origin: url.origin,
+      coursePk1,
+      contentPk1,
+    };
+  },
+
+  // STEP 8: Define course folder naming strategy
+  courseFolderName(course: Course): string {
+    // Option A: Use course name (most common)
+    return sanitizeSegment(course.name);
+
+    // Option B: Use batchUid (more concise)
+    // return sanitizeSegment(course.batchUid);
+
+    // Option C: Combine both
+    // return sanitizeSegment(`${course.batchUid} - ${course.name}`);
+  },
+
+  // STEP 9 (OPTIONAL): Extract fallback resources from HTML
+  // Only implement this if REST API /attachments is insufficient
+  // extractFallbackResources(node): Array<{ url: string; fileName: string }> {
+  //   if (!node.body) return [];
+  //
+  //   const links: Array<{ url: string; fileName: string }> = [];
+  //   const bbcswebdavPattern = /bbcswebdav\/[^"'\s]*/g;
+  //   const matches = node.body.match(bbcswebdavPattern);
+  //
+  //   if (!matches) return links;
+  //
+  //   for (const match of matches) {
+  //     const fileName = match.split('/').pop() || 'unknown';
+  //     links.push({ url: match, fileName });
+  //   }
+  //
+  //   return links;
+  // },
+};
+
+/**
+ * Helper function to detect main menu / course list pages.
+ * Used to determine when NOT to show the sidebar.
+ */
+export function isExampleSchoolMainMenu(url: URL): boolean {
+  if (!exampleSchoolAdapter.matches(url)) return false;
+
+  const path = url.pathname;
+
+  // Classic portal patterns
+  if (path.includes('/webapps/portal/')) return true;
+
+  // Ultra patterns
+  if (path === '/ultra' || path === '/ultra/') return true;
+  if (path.startsWith('/ultra/institution-page')) return true;
+  if (path.startsWith('/ultra/stream')) return true;
+  if (path === '/ultra/course' || path.startsWith('/ultra/course?')) return true;
+
+  return false;
+}
+
+// DO NOT register this template adapter in registry.ts
+// It is for documentation purposes only

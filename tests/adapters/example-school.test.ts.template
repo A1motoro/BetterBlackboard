@@ -1,0 +1,215 @@
+/**
+ * THIS IS A TEMPLATE FILE FOR TESTING NEW ADAPTERS
+ *
+ * Copy this file when creating tests for a new school adapter.
+ * Replace all instances of "example" with your school's adapter ID.
+ *
+ * See docs/ADDING_A_SCHOOL.md for complete testing guidelines.
+ */
+
+import { describe, expect, it } from 'vitest';
+// import { exampleSchoolAdapter, isExampleSchoolMainMenu } from '../../src/adapters/example';
+// import type { Course } from '../../src/core/types';
+
+describe.skip('exampleSchoolAdapter', () => {
+  describe('metadata', () => {
+    it('有正确的 ID 和显示名', () => {
+      // expect(exampleSchoolAdapter.id).toBe('example');
+      // expect(exampleSchoolAdapter.displayName).toBe('Example University');
+    });
+
+    it('有正确的 origin', () => {
+      // expect(exampleSchoolAdapter.origin).toBe('https://bb.example.edu');
+    });
+
+    it('有正确的 API base path', () => {
+      // expect(exampleSchoolAdapter.apiBasePath).toBe('/learn/api/public/v1');
+    });
+  });
+
+  describe('matches', () => {
+    it('匹配正确的 origin', () => {
+      // const url = new URL('https://bb.example.edu/webapps/portal/');
+      // expect(exampleSchoolAdapter.matches(url)).toBe(true);
+    });
+
+    it('匹配任何路径', () => {
+      // const paths = [
+      //   '/webapps/blackboard/content/listContent.jsp',
+      //   '/learn/api/public/v1/courses',
+      //   '/ultra/courses/_123_1/outline',
+      // ];
+      // for (const path of paths) {
+      //   const url = new URL(`https://bb.example.edu${path}`);
+      //   expect(exampleSchoolAdapter.matches(url)).toBe(true);
+      // }
+    });
+
+    it('不匹配其他 origin', () => {
+      // const url = new URL('https://other.edu/path');
+      // expect(exampleSchoolAdapter.matches(url)).toBe(false);
+    });
+
+    it('不匹配 http', () => {
+      // const url = new URL('http://bb.example.edu/path');
+      // expect(exampleSchoolAdapter.matches(url)).toBe(false);
+    });
+  });
+
+  describe('parseCourseContext', () => {
+    it('解析标准课程内容页 URL', () => {
+      // const url = new URL(
+      //   'https://bb.example.edu/webapps/blackboard/content/listContent.jsp?course_id=_123_1&content_id=_456_1',
+      // );
+      // const context = exampleSchoolAdapter.parseCourseContext(url);
+      // expect(context).toEqual({
+      //   origin: 'https://bb.example.edu',
+      //   coursePk1: '_123_1',
+      //   contentPk1: '_456_1',
+      // });
+    });
+
+    it('解析带额外参数的 URL', () => {
+      // const url = new URL(
+      //   'https://bb.example.edu/webapps/blackboard/content/listContent.jsp?course_id=_123_1&content_id=_456_1&mode=view',
+      // );
+      // const context = exampleSchoolAdapter.parseCourseContext(url);
+      // expect(context).toEqual({
+      //   origin: 'https://bb.example.edu',
+      //   coursePk1: '_123_1',
+      //   contentPk1: '_456_1',
+      // });
+    });
+
+    it('缺少 course_id 返回 null', () => {
+      // const url = new URL(
+      //   'https://bb.example.edu/webapps/blackboard/content/listContent.jsp?content_id=_456_1',
+      // );
+      // expect(exampleSchoolAdapter.parseCourseContext(url)).toBeNull();
+    });
+
+    it('缺少 content_id 返回 null', () => {
+      // const url = new URL(
+      //   'https://bb.example.edu/webapps/blackboard/content/listContent.jsp?course_id=_123_1',
+      // );
+      // expect(exampleSchoolAdapter.parseCourseContext(url)).toBeNull();
+    });
+
+    it('主页返回 null', () => {
+      // const url = new URL('https://bb.example.edu/webapps/portal/execute/tabs/tabAction');
+      // expect(exampleSchoolAdapter.parseCourseContext(url)).toBeNull();
+    });
+
+    it('非本校 URL 返回 null', () => {
+      // const url = new URL('https://other.edu/courses?course_id=123');
+      // expect(exampleSchoolAdapter.parseCourseContext(url)).toBeNull();
+    });
+  });
+
+  describe('courseFolderName', () => {
+    it('使用课程名称生成文件夹', () => {
+      // const course: Course = {
+      //   pk1: '_123_1',
+      //   batchUid: 'DEMO101',
+      //   name: 'DEMO101:Introduction to Demo',
+      //   ultraStatus: 'Classic',
+      // };
+      // const folderName = exampleSchoolAdapter.courseFolderName(course);
+      // expect(folderName).toBeTruthy();
+      // expect(folderName).not.toContain(':');
+    });
+
+    it('替换特殊字符', () => {
+      // const course: Course = {
+      //   pk1: '_1_1',
+      //   batchUid: 'TEST',
+      //   name: 'Test/Course:Name*With?Special<Chars>',
+      //   ultraStatus: 'Classic',
+      // };
+      // const folderName = exampleSchoolAdapter.courseFolderName(course);
+      // expect(folderName).not.toContain('/');
+      // expect(folderName).not.toContain(':');
+      // expect(folderName).not.toContain('*');
+      // expect(folderName).not.toContain('?');
+      // expect(folderName).not.toContain('<');
+      // expect(folderName).not.toContain('>');
+    });
+
+    it('处理超长课程名', () => {
+      // const course: Course = {
+      //   pk1: '_1_1',
+      //   batchUid: 'LONG',
+      //   name: 'A'.repeat(300),
+      //   ultraStatus: 'Classic',
+      // };
+      // const folderName = exampleSchoolAdapter.courseFolderName(course);
+      // expect(folderName.length).toBeLessThanOrEqual(255);
+    });
+  });
+
+  describe('isExampleSchoolMainMenu', () => {
+    it('识别 Classic portal 主页', () => {
+      // const url = new URL('https://bb.example.edu/webapps/portal/execute/tabs/tabAction');
+      // expect(isExampleSchoolMainMenu(url)).toBe(true);
+    });
+
+    it('识别 Ultra 主页', () => {
+      // const urls = [
+      //   'https://bb.example.edu/ultra',
+      //   'https://bb.example.edu/ultra/',
+      //   'https://bb.example.edu/ultra/institution-page',
+      //   'https://bb.example.edu/ultra/stream',
+      // ];
+      // for (const urlStr of urls) {
+      //   expect(isExampleSchoolMainMenu(new URL(urlStr))).toBe(true);
+      // }
+    });
+
+    it('识别 Ultra 课程列表页', () => {
+      // const url = new URL('https://bb.example.edu/ultra/course');
+      // expect(isExampleSchoolMainMenu(url)).toBe(true);
+    });
+
+    it('课程内容页不是主页', () => {
+      // const url = new URL(
+      //   'https://bb.example.edu/webapps/blackboard/content/listContent.jsp?course_id=_123_1&content_id=_456_1',
+      // );
+      // expect(isExampleSchoolMainMenu(url)).toBe(false);
+    });
+
+    it('非本校 URL 不是主页', () => {
+      // const url = new URL('https://other.edu/webapps/portal/');
+      // expect(isExampleSchoolMainMenu(url)).toBe(false);
+    });
+  });
+
+  describe('extractFallbackResources (if implemented)', () => {
+    it('从 HTML body 提取资源', () => {
+      // if (!exampleSchoolAdapter.extractFallbackResources) {
+      //   expect(exampleSchoolAdapter.extractFallbackResources).toBeUndefined();
+      //   return;
+      // }
+      //
+      // const node = {
+      //   pk1: '_doc_1',
+      //   title: 'Resources',
+      //   body: '<a href="bbcswebdav/courses/_123_1/file.pdf">Download</a>',
+      // };
+      // const resources = exampleSchoolAdapter.extractFallbackResources(node);
+      // expect(resources).toHaveLength(1);
+      // expect(resources[0]?.url).toContain('bbcswebdav');
+    });
+
+    it('没有资源时返回空数组', () => {
+      // if (!exampleSchoolAdapter.extractFallbackResources) return;
+      //
+      // const node = {
+      //   pk1: '_doc_1',
+      //   title: 'Empty',
+      //   body: '<p>No resources here</p>',
+      // };
+      // const resources = exampleSchoolAdapter.extractFallbackResources(node);
+      // expect(resources).toEqual([]);
+    });
+  });
+});
