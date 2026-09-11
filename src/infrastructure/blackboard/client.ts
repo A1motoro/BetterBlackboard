@@ -114,12 +114,10 @@ export class BlackboardClient {
     };
   }
 
-  async listMyCourses(
-    options?: {
-      availabilityFilter?: 'Yes' | 'No' | 'Disabled';
-      signal?: AbortSignal;
-    },
-  ): Promise<Course[]> {
+  async listMyCourses(options?: {
+    availabilityFilter?: 'Yes' | 'No' | 'Disabled';
+    signal?: AbortSignal;
+  }): Promise<Course[]> {
     const availabilityParam = options?.availabilityFilter
       ? `&availability.available=${options.availabilityFilter}`
       : '';
