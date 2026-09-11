@@ -87,7 +87,7 @@ export function Popup() {
       const msg =
         error instanceof Error
           ? error.message
-          : (error as SerializedBbError).message ?? '启用失败';
+          : ((error as SerializedBbError).message ?? '启用失败');
       setMessage(msg);
     } finally {
       setBusy(false);
