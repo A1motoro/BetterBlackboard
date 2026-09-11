@@ -1,8 +1,13 @@
 import { CUHKSZ_ORIGIN, CUHKSZ_PERMISSION } from '../adapters/cuhksz';
 import { BbError, type SerializedBbError } from '../core/types';
+import type { CourseDownloadHistory } from '../core/download-history';
 import { fetchApiJson } from '../infrastructure/blackboard/transport';
 import { CourseTrackingStore } from '../infrastructure/course-tracking';
 import { PersistentDownloadQueue } from '../infrastructure/download-queue';
+import {
+  ChromeHistoryStore,
+  type HistoryStore,
+} from '../infrastructure/history-store';
 import {
   isExtensionRequest,
   type ExtensionRequest,
@@ -94,6 +99,7 @@ async function activateAuthorizedSite(): Promise<void> {
 
 export default defineBackground(() => {
   const tracking = new CourseTrackingStore();
+  const historyStore: HistoryStore = new ChromeHistoryStore();
   const queue = new PersistentDownloadQueue(tracking);
   void queue.init();
   void activateAuthorizedSite();
@@ -158,6 +164,22 @@ export default defineBackground(() => {
             };
           case 'courses.tracking.homeSynced':
             return { ok: true, data: await tracking.markHomeSynced() };
+          case 'history.get':
+            return {
+              ok: true,
+              data: await historyStore.get(
+                message.coursePk1,
+                message.contentPk1,
+              ),
+            };
+          case 'history.save': {
+            const history = message.history as CourseDownloadHistory;
+            await historyStore.save(history);
+            return { ok: true, data: null };
+          }
+          case 'history.clear':
+            await historyStore.delete(message.coursePk1, message.contentPk1);
+            return { ok: true, data: null };
           default:
             return {
               ok: false,
