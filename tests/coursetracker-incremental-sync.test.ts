@@ -129,7 +129,12 @@ describe('CourseTracker 增量同步', () => {
       ),
     );
 
-    const plan = createDownloadPlan(context, course, newNodes, downloadableKeys);
+    const plan = createDownloadPlan(
+      context,
+      course,
+      newNodes,
+      downloadableKeys,
+    );
     expect(plan.length).toBe(2);
     expect(plan.every((task) => task.coursePk1 === course.pk1)).toBe(true);
   });
