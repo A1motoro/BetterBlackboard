@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { filterCurrentTermCourses } from '../core/term-filter';
 import type { Course } from '../core/types';
 
 interface CourseTrackerProps {
@@ -21,13 +22,20 @@ export function CourseTracker({
   onDownloadWholeCourse,
 }: CourseTrackerProps) {
   const [showAvailableOnly, setShowAvailableOnly] = useState(true);
+  const [showCurrentTermOnly, setShowCurrentTermOnly] = useState(false);
 
-  const filteredCourses = showAvailableOnly
-    ? courses.filter(
-        (course) =>
-          !course.availability || course.availability.available === 'Yes',
-      )
-    : courses;
+  let filteredCourses = courses;
+
+  if (showAvailableOnly) {
+    filteredCourses = filteredCourses.filter(
+      (course) =>
+        !course.availability || course.availability.available === 'Yes',
+    );
+  }
+
+  if (showCurrentTermOnly) {
+    filteredCourses = filterCurrentTermCourses(filteredCourses);
+  }
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -35,7 +43,7 @@ export function CourseTracker({
         <p className="text-xs leading-5 text-slate-500">
           勾选后立刻下载该课全部附件。之后打开主菜单时只补路径或文件名变了的新文件。
         </p>
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-2 space-y-2">
           <button
             type="button"
             disabled={syncing || tracked.size === 0}
@@ -44,15 +52,28 @@ export function CourseTracker({
           >
             {syncing ? '正在同步…' : '立即同步已跟踪课程'}
           </button>
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 accent-indigo-600"
-              checked={showAvailableOnly}
-              onChange={(event) => setShowAvailableOnly(event.target.checked)}
-            />
-            <span>仅显示可用课程</span>
-          </label>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 accent-indigo-600"
+                checked={showAvailableOnly}
+                onChange={(event) => setShowAvailableOnly(event.target.checked)}
+              />
+              <span>仅显示可用课程</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 accent-indigo-600"
+                checked={showCurrentTermOnly}
+                onChange={(event) =>
+                  setShowCurrentTermOnly(event.target.checked)
+                }
+              />
+              <span>仅显示当前学期</span>
+            </label>
+          </div>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-3 py-2">
