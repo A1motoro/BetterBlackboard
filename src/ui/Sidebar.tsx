@@ -58,6 +58,7 @@ import { CourseTracker } from './CourseTracker';
 import { DDLSection } from './DDLView';
 import { DownloadPanel } from './DownloadPanel';
 import { DiffPreviewComponent } from './DiffPreview';
+import { buildEnqueueNotice, type Notice } from './notice-builder';
 
 const POLL_INTERVAL = 1_200;
 const PENDING_STATUSES = new Set<DownloadTask['status']>([
@@ -65,11 +66,6 @@ const PENDING_STATUSES = new Set<DownloadTask['status']>([
   'starting',
   'in_progress',
 ]);
-
-interface Notice {
-  tone: 'info' | 'error';
-  message: string;
-}
 
 interface State {
   loading: boolean;
@@ -229,17 +225,6 @@ function errorMessage(error: unknown): string {
   if (error instanceof BbError) return error.message;
   if (error instanceof Error) return error.message;
   return '加载 Blackboard 内容时发生未知错误';
-}
-
-function enqueueNotice(result: EnqueueResult): Notice {
-  const parts: string[] = [];
-  if (result.accepted > 0) parts.push(`已加入 ${result.accepted} 个文件`);
-  if (result.duplicates > 0) parts.push(`${result.duplicates} 个已在队列中`);
-  if (result.rejected > 0) parts.push(`${result.rejected} 个被安全策略拦截`);
-  return {
-    tone: result.accepted > 0 ? 'info' : 'error',
-    message: parts.length > 0 ? parts.join('，') : '没有新的文件需要下载',
-  };
 }
 
 function createClient(): BlackboardClient {
@@ -406,7 +391,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
       tasks,
     });
     dispatch({ type: 'tasks', tasks: result.tasks });
-    dispatch({ type: 'notice', notice: enqueueNotice(result) });
+    dispatch({ type: 'notice', notice: buildEnqueueNotice(result) });
   };
 
   // Operation failures surface as a dismissible notice; replacing `loadError`
@@ -510,7 +495,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
     void syncCourse(course)
       .then((result) => {
         dispatch({ type: 'tasks', tasks: result.tasks });
-        dispatch({ type: 'notice', notice: enqueueNotice(result) });
+        dispatch({ type: 'notice', notice: buildEnqueueNotice(result) });
       })
       .catch(reportFailure)
       .finally(() => dispatch({ type: 'busy', coursePk1: null }));
@@ -541,7 +526,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
         dispatch({ type: 'tasks', tasks: lastTasks });
         dispatch({
           type: 'notice',
-          notice: enqueueNotice({
+          notice: buildEnqueueNotice({
             tasks: lastTasks,
             accepted,
             duplicates,
