@@ -20,7 +20,7 @@
     "postinstall": "wxt prepare && simple-git-hooks"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm format:check && pnpm lint"
+    "pre-commit": "corepack pnpm format:check && corepack pnpm lint"
   },
   "dependencies": {
     "react": "19.2.8",

@@ -64,8 +64,8 @@ corepack pnpm check
 ## Git 工作流
 
 - `main` 始终保持可构建；功能开发使用 `feature/<name>` 分支。
-- 已配置 pre-commit 钩子：提交时自动运行 `pnpm format:check` 和 `pnpm lint`。
-- 手动运行完整检查：`corepack pnpm check`(包含 lint、typecheck、test、build)。
+- 已配置 pre-commit 钩子：提交时自动运行 `corepack pnpm format:check` 和 `corepack pnpm lint`。
+- 手动运行完整检查：`corepack pnpm check`(包含 format:check、lint、typecheck、test、build)。
 - 提交信息使用简短祈使句，例如 `feat: add course content tree`。
 - `.output`、`.wxt`、依赖和测试报告均已忽略，不提交生成产物。
 - 推送或创建 PR 后，GitHub Actions 会执行格式、lint、类型、测试和构建检查。
