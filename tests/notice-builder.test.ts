@@ -17,7 +17,7 @@ describe('buildEnqueueNotice', () => {
     );
   });
 
-  it('返回 info 当只有被拒绝的文件', () => {
+  it('返回 error 当只有被拒绝的文件', () => {
     const result: EnqueueResult = {
       tasks: [],
       accepted: 0,
