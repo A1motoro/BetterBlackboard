@@ -64,11 +64,24 @@ corepack pnpm check
 ## Git 工作流
 
 - `main` 始终保持可构建；功能开发使用 `feature/<name>` 分支。
-- 提交前运行 `corepack pnpm check` 和 `corepack pnpm format:check`。
+- 已配置 pre-commit 钩子：提交时自动运行 `pnpm format:check` 和 `pnpm lint`。
+- 手动运行完整检查：`corepack pnpm check`(包含 lint、typecheck、test、build)。
 - 提交信息使用简短祈使句，例如 `feat: add course content tree`。
 - `.output`、`.wxt`、依赖和测试报告均已忽略，不提交生成产物。
 - 推送或创建 PR 后，GitHub Actions 会执行格式、lint、类型、测试和构建检查。
 
-## 当前范围
+## 当前状态与路线图
 
-第一版仅支持 CUHK(SZ) Blackboard Original 课程当前内容区。课程聚合、DDL、增量同步、正文裸链接和视频下载尚未包含。
+**已完成：**
+
+- Phase 2–6 核心功能已合并到 `main` 分支
+- 内容树选择、批量下载、任务恢复等功能可用
+- 本地预提交钩子自动检查代码格式和 lint
+
+**后续计划：**
+
+- 与真实 Blackboard 环境的全面验收测试(待完成)
+- 课程聚合、DDL、增量同步等高级功能
+- 正文裸链接和视频下载支持
+
+第一版仅支持 CUHK(SZ) Blackboard Original 课程当前内容区。
