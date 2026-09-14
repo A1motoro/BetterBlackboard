@@ -17,7 +17,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "run-s lint typecheck test build",
-    "postinstall": "wxt prepare"
+    "postinstall": "wxt prepare && simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm format:check && pnpm lint"
   },
   "dependencies": {
     "react": "19.2.8",
@@ -42,6 +45,7 @@
     "jsdom": "^26.1.0",
     "npm-run-all2": "^8.0.4",
     "prettier": "^3.6.2",
+    "simple-git-hooks": "^2.14.0",
     "tailwindcss": "^4.1.13",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.42.0",
