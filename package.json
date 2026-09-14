@@ -16,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "run-s lint typecheck test build",
+    "check": "run-s format:check lint typecheck test build",
     "postinstall": "wxt prepare && simple-git-hooks"
   },
   "simple-git-hooks": {
