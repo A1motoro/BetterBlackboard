@@ -107,7 +107,6 @@ export function CourseTracker({
                         type="checkbox"
                         className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600"
                         checked={isTracked}
-                        disabled={busyPk1 !== null}
                         aria-label={`跟踪 ${course.name}`}
                         onChange={(event) =>
                           onToggle(course, event.target.checked)

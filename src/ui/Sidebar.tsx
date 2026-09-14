@@ -921,7 +921,6 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
               type="checkbox"
               className="h-4 w-4 accent-indigo-600"
               checked={state.tracked.has(context.coursePk1)}
-              disabled={state.busyPk1 !== null}
               onChange={(event) => {
                 const course =
                   state.course ??
