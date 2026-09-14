@@ -7,6 +7,7 @@ interface CourseTrackerProps {
   tracked: ReadonlySet<string>;
   busyPk1: string | null;
   syncing: boolean;
+  syncRoundPk1s: ReadonlySet<string>;
   onToggle: (course: Course, tracked: boolean) => void;
   onSyncNow: () => void;
   onDownloadWholeCourse: (course: Course) => void;
@@ -17,6 +18,7 @@ export function CourseTracker({
   tracked,
   busyPk1,
   syncing,
+  syncRoundPk1s,
   onToggle,
   onSyncNow,
   onDownloadWholeCourse,
@@ -41,17 +43,24 @@ export function CourseTracker({
     <section className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-slate-200 px-4 py-3">
         <p className="text-xs leading-5 text-slate-500">
-          勾选课程加入跟踪列表。点击「立即同步」按钮开始下载/补齐已跟踪课程的附件。
+          勾选课程加入跟踪列表。勾选后不会立即下载，点击「立即同步」开始下载。
         </p>
         <div className="mt-2 space-y-2">
-          <button
-            type="button"
-            disabled={syncing || tracked.size === 0}
-            className="rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
-            onClick={onSyncNow}
-          >
-            {syncing ? '正在同步…' : '立即同步已跟踪课程'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={syncing || tracked.size === 0}
+              className="rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
+              onClick={onSyncNow}
+            >
+              {syncing ? '正在同步…' : '立即同步'}
+            </button>
+            {syncing && syncRoundPk1s.size > 0 && (
+              <span className="text-xs text-slate-500">
+                本轮 {syncRoundPk1s.size} 门 · 可继续勾选，下轮再生效
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
               <input
@@ -87,6 +96,9 @@ export function CourseTracker({
           <ul className="space-y-1">
             {filteredCourses.map((course) => {
               const isTracked = tracked.has(course.pk1);
+              const isInSyncRound = syncRoundPk1s.has(course.pk1);
+              const downloadDisabled =
+                busyPk1 === course.pk1 || (syncing && isInSyncRound);
               return (
                 <li key={course.pk1}>
                   <div className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100">
@@ -95,7 +107,6 @@ export function CourseTracker({
                         type="checkbox"
                         className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600"
                         checked={isTracked}
-                        disabled={busyPk1 !== null}
                         aria-label={`跟踪 ${course.name}`}
                         onChange={(event) =>
                           onToggle(course, event.target.checked)
@@ -107,10 +118,14 @@ export function CourseTracker({
                     </label>
                     <button
                       type="button"
-                      disabled={busyPk1 === course.pk1}
+                      disabled={downloadDisabled}
                       className="shrink-0 text-xs text-indigo-600 hover:text-indigo-800 disabled:cursor-not-allowed disabled:text-slate-400"
                       onClick={() => onDownloadWholeCourse(course)}
-                      title="下载整课内容"
+                      title={
+                        downloadDisabled && isInSyncRound
+                          ? '该课程正在本轮同步中'
+                          : '下载整课内容'
+                      }
                     >
                       ⬇️
                     </button>

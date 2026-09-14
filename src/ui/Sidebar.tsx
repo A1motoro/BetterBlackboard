@@ -78,6 +78,7 @@ interface State {
   tracked: Set<string>;
   busyPk1: string | null;
   syncing: boolean;
+  syncRoundPk1s: Set<string>;
   loadError: string | null;
   notice: Notice | null;
   diffPreview: DiffPreview | null;
@@ -107,6 +108,7 @@ type Action =
   | { type: 'tracking'; tracked: string[] }
   | { type: 'busy'; coursePk1: string | null }
   | { type: 'syncing'; value: boolean }
+  | { type: 'syncRoundStarted'; pk1s: string[] }
   | { type: 'showDiff'; preview: DiffPreview }
   | { type: 'hideDiff' }
   | { type: 'setViewMode'; mode: 'files' | 'ddl' }
@@ -134,6 +136,7 @@ const initialState: State = {
   tracked: new Set(),
   busyPk1: null,
   syncing: false,
+  syncRoundPk1s: new Set(),
   loadError: null,
   notice: null,
   diffPreview: null,
@@ -183,7 +186,13 @@ function reducer(state: State, action: Action): State {
     case 'busy':
       return { ...state, busyPk1: action.coursePk1 };
     case 'syncing':
-      return { ...state, syncing: action.value };
+      return {
+        ...state,
+        syncing: action.value,
+        syncRoundPk1s: action.value ? state.syncRoundPk1s : new Set(),
+      };
+    case 'syncRoundStarted':
+      return { ...state, syncRoundPk1s: new Set(action.pk1s) };
     case 'showDiff':
       return {
         ...state,
@@ -507,6 +516,8 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
         state.tracked.has(course.pk1),
       );
       if (selected.length === 0) return;
+      const frozenPk1s = selected.map((course) => course.pk1);
+      dispatch({ type: 'syncRoundStarted', pk1s: frozenPk1s });
       dispatch({ type: 'syncing', value: true });
       void (async () => {
         let accepted = 0;
@@ -884,6 +895,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
               tracked={state.tracked}
               busyPk1={state.busyPk1}
               syncing={state.syncing}
+              syncRoundPk1s={state.syncRoundPk1s}
               onToggle={toggleTrack}
               onSyncNow={() => syncTracked(state.courses)}
               onDownloadWholeCourse={downloadWholeCourse}
@@ -909,7 +921,6 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
               type="checkbox"
               className="h-4 w-4 accent-indigo-600"
               checked={state.tracked.has(context.coursePk1)}
-              disabled={state.busyPk1 !== null}
               onChange={(event) => {
                 const course =
                   state.course ??
@@ -918,7 +929,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
                 toggleTrack(course, event.target.checked);
               }}
             />
-            跟踪本课，主菜单打开时自动补新文件
+            跟踪本课，可通过主菜单同步下载新文件
           </label>
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <button
