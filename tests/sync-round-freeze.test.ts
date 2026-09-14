@@ -145,11 +145,7 @@ describe('同步轮次冻结 UX', () => {
       const frozenPk1s = selected.map((course) => course.pk1);
 
       expect(selected.length).toBe(3);
-      expect(frozenPk1s).toEqual([
-        '_course1_1',
-        '_course2_1',
-        '_course3_1',
-      ]);
+      expect(frozenPk1s).toEqual(['_course1_1', '_course2_1', '_course3_1']);
     });
 
     it('在同步期间修改 tracked 不应影响冻结的集合', () => {
