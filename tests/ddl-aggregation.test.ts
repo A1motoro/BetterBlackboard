@@ -490,78 +490,107 @@ describe('isAssignmentType', () => {
 
 describe('formatDueDate', () => {
   it('格式化未来日期', () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(23, 59, 0, 0);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
 
+    const tomorrow = new Date('2024-01-16T23:59:00.000Z');
     const formatted = formatDueDate(tomorrow.toISOString());
 
     expect(formatted.date).toMatch(/\d{4}\/\d{2}\/\d{2}/);
     expect(formatted.time).toMatch(/\d{2}:\d{2}/);
     expect(formatted.relative).toBe('明天截止');
+
+    vi.useRealTimers();
   });
 
   it('标记已过期的日期', () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
 
+    const yesterday = new Date('2024-01-14T12:00:00.000Z');
     const formatted = formatDueDate(yesterday.toISOString());
 
     expect(formatted.relative).toBe('已截止');
+
+    vi.useRealTimers();
   });
 
   it('计算相对天数', () => {
-    const future = new Date();
-    future.setDate(future.getDate() + 5);
-    future.setHours(12, 0, 0, 0);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
 
+    const future = new Date('2024-01-20T12:00:00.000Z');
     const formatted = formatDueDate(future.toISOString());
 
     expect(formatted.relative).toBe('5天后');
+
+    vi.useRealTimers();
   });
 
   it('显示今天截止', () => {
-    const today = new Date();
-    today.setHours(23, 59, 0, 0);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
 
+    const today = new Date('2024-01-15T23:59:00.000Z');
     const formatted = formatDueDate(today.toISOString());
 
     expect(formatted.relative).toBe('今天截止');
+
+    vi.useRealTimers();
   });
 
   it('显示周数', () => {
-    const future = new Date();
-    future.setDate(future.getDate() + 21);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
 
+    const future = new Date('2024-02-05T12:00:00.000Z');
     const formatted = formatDueDate(future.toISOString());
 
     expect(formatted.relative).toBe('3周后');
+
+    vi.useRealTimers();
   });
 });
 
 describe('isOverdue', () => {
   it('识别过期日期', () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
 
+    const yesterday = new Date('2024-01-14T12:00:00.000Z');
     expect(isOverdue(yesterday.toISOString())).toBe(true);
+
+    vi.useRealTimers();
   });
 
   it('识别未来日期', () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
 
+    const tomorrow = new Date('2024-01-16T12:00:00.000Z');
     expect(isOverdue(tomorrow.toISOString())).toBe(false);
+
+    vi.useRealTimers();
   });
 });
 
 describe('groupByTimeframe', () => {
   it('按时间段分组assignments', () => {
-    const now = Date.now();
-    const yesterday = new Date(now - 24 * 60 * 60 * 1000);
-    const threeDays = new Date(now + 3 * 24 * 60 * 60 * 1000);
-    const nineDays = new Date(now + 9 * 24 * 60 * 60 * 1000);
-    const twentyDays = new Date(now + 20 * 24 * 60 * 60 * 1000);
+    vi.useFakeTimers();
+    const now = new Date('2024-01-15T12:00:00.000Z');
+    vi.setSystemTime(now);
+
+    const yesterday = new Date('2024-01-14T12:00:00.000Z');
+    const threeDays = new Date('2024-01-18T12:00:00.000Z');
+    const nineDays = new Date('2024-01-24T12:00:00.000Z');
+    const twentyDays = new Date('2024-02-04T12:00:00.000Z');
 
     const assignments = [
       {
@@ -613,6 +642,8 @@ describe('groupByTimeframe', () => {
     expect(grouped.thisWeek[0]?.title).toBe('This Week');
     expect(grouped.nextWeek[0]?.title).toBe('Next Week');
     expect(grouped.later[0]?.title).toBe('Later');
+
+    vi.useRealTimers();
   });
 
   it('处理空列表', () => {
