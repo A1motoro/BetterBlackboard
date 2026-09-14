@@ -113,6 +113,12 @@ export interface DownloadSnapshotEvent {
   tasks: DownloadTask[];
 }
 
+export interface StorageChangedCourseTrackingEvent {
+  v: 1;
+  type: 'storage.changed.courseTracking';
+  snapshot: unknown;
+}
+
 const REQUEST_TYPES = new Set<string>([
   'api.request',
   'downloads.enqueue',
@@ -150,5 +156,15 @@ export function isDownloadSnapshotEvent(
     candidate.v === 1 &&
     candidate.type === 'downloads.snapshot' &&
     Array.isArray(candidate.tasks)
+  );
+}
+
+export function isStorageChangedCourseTrackingEvent(
+  value: unknown,
+): value is StorageChangedCourseTrackingEvent {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<StorageChangedCourseTrackingEvent>;
+  return (
+    candidate.v === 1 && candidate.type === 'storage.changed.courseTracking'
   );
 }
