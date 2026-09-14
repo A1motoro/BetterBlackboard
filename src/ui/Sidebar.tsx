@@ -256,26 +256,35 @@ interface SidebarProps {
   stateStore?: SidebarStateStore;
 }
 
-export function Sidebar({
-  onCollapsedChange,
-  stateStore = new ChromeSidebarStateStore(),
-}: SidebarProps) {
+export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const pageUrl = useMemo(() => new URL(window.location.href), []);
   const context = useMemo(() => parseCourseContext(pageUrl), [pageUrl]);
   const isHome = useMemo(() => isBlackboardMainMenu(pageUrl), [pageUrl]);
   const client = useMemo(() => createClient(), []);
 
+  const storeRef = useRef<SidebarStateStore>(
+    stateStore ?? new ChromeSidebarStateStore(),
+  );
+  if (stateStore && storeRef.current !== stateStore) {
+    storeRef.current = stateStore;
+  }
+
+  const hasRestoredRef = useRef(false);
+
   useEffect(() => {
-    void stateStore.getCollapsed().then((collapsed) => {
+    void storeRef.current.getCollapsed().then((collapsed) => {
       dispatch({ type: 'collapse', value: collapsed });
+      hasRestoredRef.current = true;
     });
-  }, [stateStore]);
+  }, []);
 
   useEffect(() => {
     onCollapsedChange?.(state.collapsed);
-    void stateStore.setCollapsed(state.collapsed);
-  }, [onCollapsedChange, state.collapsed, stateStore]);
+    if (hasRestoredRef.current) {
+      void storeRef.current.setCollapsed(state.collapsed);
+    }
+  }, [onCollapsedChange, state.collapsed]);
 
   const refresh = useCallback(() => {
     void send<DownloadTask[]>({

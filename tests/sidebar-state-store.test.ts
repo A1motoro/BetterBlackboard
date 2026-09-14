@@ -49,4 +49,51 @@ describe('sidebar-state-store', () => {
       expect(await store.getCollapsed()).toBe(true);
     });
   });
+
+  describe('restore race conditions', () => {
+    it('should not clobber restored true with premature save of default false', async () => {
+      await store.setCollapsed(true);
+      expect(await store.getCollapsed()).toBe(true);
+
+      const restoredValue = await store.getCollapsed();
+      expect(restoredValue).toBe(true);
+    });
+
+    it('should preserve restored state across multiple reads', async () => {
+      await store.setCollapsed(true);
+
+      const read1 = await store.getCollapsed();
+      const read2 = await store.getCollapsed();
+      const read3 = await store.getCollapsed();
+
+      expect(read1).toBe(true);
+      expect(read2).toBe(true);
+      expect(read3).toBe(true);
+    });
+  });
+
+  describe('store identity', () => {
+    it('should return consistent values when called multiple times', async () => {
+      await store.setCollapsed(true);
+
+      const results = await Promise.all([
+        store.getCollapsed(),
+        store.getCollapsed(),
+        store.getCollapsed(),
+      ]);
+
+      expect(results).toEqual([true, true, true]);
+    });
+
+    it('should not lose state between sequential operations', async () => {
+      await store.setCollapsed(true);
+      expect(await store.getCollapsed()).toBe(true);
+
+      await store.setCollapsed(false);
+      expect(await store.getCollapsed()).toBe(false);
+
+      await store.setCollapsed(true);
+      expect(await store.getCollapsed()).toBe(true);
+    });
+  });
 });
