@@ -49,6 +49,10 @@ import {
   type ExtensionRequest,
   type ExtensionResponse,
 } from '../infrastructure/messages';
+import {
+  ChromeSidebarStateStore,
+  type SidebarStateStore,
+} from '../infrastructure/sidebar-state-store';
 import { ContentTree } from './ContentTree';
 import { CourseTracker } from './CourseTracker';
 import { DDLSection } from './DDLView';
@@ -249,17 +253,37 @@ function createClient(): BlackboardClient {
 
 interface SidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
+  stateStore?: SidebarStateStore;
 }
 
-export function Sidebar({ onCollapsedChange }: SidebarProps) {
+export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const pageUrl = useMemo(() => new URL(window.location.href), []);
   const context = useMemo(() => parseCourseContext(pageUrl), [pageUrl]);
   const isHome = useMemo(() => isBlackboardMainMenu(pageUrl), [pageUrl]);
   const client = useMemo(() => createClient(), []);
 
+  const storeRef = useRef<SidebarStateStore>(
+    stateStore ?? new ChromeSidebarStateStore(),
+  );
+  if (stateStore && storeRef.current !== stateStore) {
+    storeRef.current = stateStore;
+  }
+
+  const hasRestoredRef = useRef(false);
+
+  useEffect(() => {
+    void storeRef.current.getCollapsed().then((collapsed) => {
+      dispatch({ type: 'collapse', value: collapsed });
+      hasRestoredRef.current = true;
+    });
+  }, []);
+
   useEffect(() => {
     onCollapsedChange?.(state.collapsed);
+    if (hasRestoredRef.current) {
+      void storeRef.current.setCollapsed(state.collapsed);
+    }
   }, [onCollapsedChange, state.collapsed]);
 
   const refresh = useCallback(() => {
