@@ -44,6 +44,7 @@ import {
 } from '../infrastructure/blackboard/transport';
 import {
   isDownloadSnapshotEvent,
+  isStorageChangedCourseTrackingEvent,
   requestId,
   type EnqueueResult,
   type ExtensionRequest,
@@ -271,19 +272,28 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
   }
 
   const hasRestoredRef = useRef(false);
+  const isApplyingRemoteChangeRef = useRef(false);
 
   useEffect(() => {
     void storeRef.current.getCollapsed().then((collapsed) => {
       dispatch({ type: 'collapse', value: collapsed });
       hasRestoredRef.current = true;
     });
+
+    const unsubscribe = storeRef.current.onChanged((collapsed) => {
+      isApplyingRemoteChangeRef.current = true;
+      dispatch({ type: 'collapse', value: collapsed });
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     onCollapsedChange?.(state.collapsed);
-    if (hasRestoredRef.current) {
+    if (hasRestoredRef.current && !isApplyingRemoteChangeRef.current) {
       void storeRef.current.setCollapsed(state.collapsed);
     }
+    isApplyingRemoteChangeRef.current = false;
   }, [onCollapsedChange, state.collapsed]);
 
   const refresh = useCallback(() => {
@@ -300,6 +310,12 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
     const listener = (message: unknown) => {
       if (isDownloadSnapshotEvent(message)) {
         dispatch({ type: 'tasks', tasks: message.tasks });
+      } else if (isStorageChangedCourseTrackingEvent(message)) {
+        const snapshot = message.snapshot as
+          Partial<CourseTrackingSnapshot> | undefined;
+        if (snapshot && Array.isArray(snapshot.trackedPk1s)) {
+          dispatch({ type: 'tracking', tracked: snapshot.trackedPk1s });
+        }
       }
     };
     browser.runtime.onMessage.addListener(listener);

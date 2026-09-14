@@ -118,6 +118,28 @@ export default defineBackground(() => {
   void queue.init();
   void activateAuthorizedSites();
 
+  // Listen for storage changes and broadcast to all tabs
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+    const courseTrackingChange = changes['courseTracking'];
+    if (courseTrackingChange && courseTrackingChange.newValue) {
+      // Broadcast tracking changes to all content scripts
+      void browser.tabs.query({}).then((tabs) => {
+        for (const tab of tabs) {
+          if (tab.id) {
+            void browser.tabs
+              .sendMessage(tab.id, {
+                v: 1,
+                type: 'storage.changed.courseTracking',
+                snapshot: courseTrackingChange.newValue,
+              })
+              .catch(() => undefined);
+          }
+        }
+      });
+    }
+  });
+
   // MV3 only wakes a terminated service worker for listeners registered
   // synchronously during startup, so this must not move behind an await.
   browser.downloads.onChanged.addListener((delta) => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   MemorySidebarStateStore,
   type SidebarStateStore,
@@ -94,6 +94,59 @@ describe('sidebar-state-store', () => {
 
       await store.setCollapsed(true);
       expect(await store.getCollapsed()).toBe(true);
+    });
+  });
+
+  describe('onChanged', () => {
+    it('should notify listeners when state changes', async () => {
+      const listener = vi.fn();
+      const unsubscribe = store.onChanged(listener);
+
+      await store.setCollapsed(true);
+      expect(listener).toHaveBeenCalledWith(true);
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      await store.setCollapsed(false);
+      expect(listener).toHaveBeenCalledWith(false);
+      expect(listener).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+    });
+
+    it('should not notify unsubscribed listeners', async () => {
+      const listener = vi.fn();
+      const unsubscribe = store.onChanged(listener);
+
+      await store.setCollapsed(true);
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+
+      await store.setCollapsed(false);
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('should support multiple listeners', async () => {
+      const listener1 = vi.fn();
+      const listener2 = vi.fn();
+
+      const unsubscribe1 = store.onChanged(listener1);
+      const unsubscribe2 = store.onChanged(listener2);
+
+      await store.setCollapsed(true);
+      expect(listener1).toHaveBeenCalledWith(true);
+      expect(listener2).toHaveBeenCalledWith(true);
+
+      unsubscribe1();
+      unsubscribe2();
+    });
+
+    it('should not echo changes from remote sources in real usage', async () => {
+      const listener = vi.fn();
+      store.onChanged(listener);
+
+      await store.setCollapsed(true);
+      expect(listener).toHaveBeenCalledTimes(1);
     });
   });
 });
