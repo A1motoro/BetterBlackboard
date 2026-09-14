@@ -41,13 +41,13 @@ export function CourseTracker({
     <section className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-slate-200 px-4 py-3">
         <p className="text-xs leading-5 text-slate-500">
-          勾选后立刻下载该课全部附件。之后打开主菜单时只补路径或文件名变了的新文件。
+          勾选课程加入跟踪列表。点击「立即同步」按钮开始下载/补齐已跟踪课程的附件。
         </p>
         <div className="mt-2 space-y-2">
           <button
             type="button"
             disabled={syncing || tracked.size === 0}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:cursor-not-allowed disabled:text-slate-400"
+            className="rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
             onClick={onSyncNow}
           >
             {syncing ? '正在同步…' : '立即同步已跟踪课程'}
@@ -87,7 +87,6 @@ export function CourseTracker({
           <ul className="space-y-1">
             {filteredCourses.map((course) => {
               const isTracked = tracked.has(course.pk1);
-              const busy = busyPk1 === course.pk1 || (syncing && isTracked);
               return (
                 <li key={course.pk1}>
                   <div className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100">
@@ -102,20 +101,13 @@ export function CourseTracker({
                           onToggle(course, event.target.checked)
                         }
                       />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-slate-800">
-                          {course.name}
-                        </span>
-                        {busy && (
-                          <span className="text-[11px] text-indigo-600">
-                            正在下载…
-                          </span>
-                        )}
+                      <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
+                        {course.name}
                       </span>
                     </label>
                     <button
                       type="button"
-                      disabled={busy}
+                      disabled={busyPk1 === course.pk1}
                       className="shrink-0 text-xs text-indigo-600 hover:text-indigo-800 disabled:cursor-not-allowed disabled:text-slate-400"
                       onClick={() => onDownloadWholeCourse(course)}
                       title="下载整课内容"

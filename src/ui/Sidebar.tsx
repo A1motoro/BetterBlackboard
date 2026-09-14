@@ -478,15 +478,7 @@ export function Sidebar({ onCollapsedChange }: SidebarProps) {
         name: course.name,
       });
       dispatch({ type: 'tracking', tracked: snapshot.trackedPk1s });
-      if (!tracked) return;
-
-      dispatch({ type: 'busy', coursePk1: course.pk1 });
-      const result = await syncCourse(course);
-      dispatch({ type: 'tasks', tasks: result.tasks });
-      dispatch({ type: 'notice', notice: enqueueNotice(result) });
-    })()
-      .catch(reportFailure)
-      .finally(() => dispatch({ type: 'busy', coursePk1: null }));
+    })().catch(reportFailure);
   };
 
   const downloadWholeCourse = (course: Course): void => {
