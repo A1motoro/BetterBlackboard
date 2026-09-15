@@ -181,6 +181,8 @@ export default defineBackground(() => {
             return { ok: true, data: await queue.enqueue(message.tasks) };
           case 'downloads.cancel':
             return { ok: true, data: await queue.cancel(message.taskId) };
+          case 'downloads.cancelAll':
+            return { ok: true, data: await queue.cancelAll() };
           case 'downloads.snapshot.get':
             return { ok: true, data: await queue.refreshProgress() };
           case 'site.inject':

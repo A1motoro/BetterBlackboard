@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import {
   CUHKSZ_ORIGIN,
   isBlackboardMainMenu,
@@ -27,6 +34,7 @@ import {
   collectAttachmentKeys,
   createDownloadPlan,
 } from '../core/download-plan';
+import { getDownloadRoot, setDownloadRoot } from '../core/naming';
 import {
   BbError,
   type Assignment,
@@ -253,6 +261,7 @@ interface SidebarProps {
 
 export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [downloadRoot, setDownloadRootState] = useState('BB');
   const pageUrl = useMemo(() => new URL(window.location.href), []);
   const context = useMemo(() => parseCourseContext(pageUrl), [pageUrl]);
   const isHome = useMemo(() => isBlackboardMainMenu(pageUrl), [pageUrl]);
@@ -267,6 +276,10 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
 
   const hasRestoredRef = useRef(false);
   const isApplyingRemoteChangeRef = useRef(false);
+
+  useEffect(() => {
+    void getDownloadRoot().then(setDownloadRootState);
+  }, []);
 
   useEffect(() => {
     void storeRef.current.getCollapsed().then((collapsed) => {
@@ -462,6 +475,8 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
         course,
         nodes,
         downloadableKeys,
+        [],
+        downloadRoot,
       );
 
       const result = await send<EnqueueResult>({
@@ -498,7 +513,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
 
       return result;
     },
-    [client],
+    [client, downloadRoot],
   );
 
   const toggleTrack = (course: Course, tracked: boolean): void => {
@@ -722,6 +737,8 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
         state.course!,
         state.nodes,
         downloadableKeys,
+        [],
+        downloadRoot,
       );
 
       await enqueue(tasks);
@@ -746,6 +763,8 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
         state.course!,
         state.nodes,
         downloadableKeys,
+        [],
+        downloadRoot,
       );
 
       await enqueue(tasks);
@@ -774,6 +793,25 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
     })
       .then((tasks) => dispatch({ type: 'tasks', tasks }))
       .catch(reportFailure);
+  };
+
+  const cancelAllDownloads = (): void => {
+    void send<DownloadTask[]>({
+      v: 1,
+      type: 'downloads.cancelAll',
+      requestId: requestId(),
+    })
+      .then((tasks) => dispatch({ type: 'tasks', tasks }))
+      .catch(reportFailure);
+  };
+
+  const handleDownloadRootChange = (root: string): void => {
+    setDownloadRootState(root);
+    void setDownloadRoot(root).catch(reportFailure);
+  };
+
+  const openChromeSettings = (): void => {
+    void browser.tabs.create({ url: 'chrome://settings/downloads' });
   };
 
   const retryDownload = (task: DownloadTask): void => {
@@ -1008,7 +1046,11 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
       <DownloadPanel
         tasks={currentTasks}
         onCancel={cancelDownload}
+        onCancelAll={cancelAllDownloads}
         onRetry={retryDownload}
+        downloadRoot={downloadRoot}
+        onDownloadRootChange={handleDownloadRootChange}
+        onOpenChromeSettings={openChromeSettings}
       />
     </aside>
   );

@@ -25,6 +25,7 @@ export function createDownloadPlan(
   nodes: ContentNode[],
   selected: ReadonlySet<string>,
   rootFolders: readonly string[] = [],
+  downloadRoot?: string,
 ): DownloadTaskInput[] {
   const tasks: DownloadTaskInput[] = [];
 
@@ -42,6 +43,7 @@ export function createDownloadPlan(
             sanitizeSegment(course.name),
             folders,
             attachment.fileName,
+            downloadRoot,
           ),
         });
       }
@@ -69,12 +71,15 @@ export function createFullDownloadPlan(
   context: CourseContext,
   course: Course,
   nodes: ContentNode[],
+  downloadRoot?: string,
 ): DownloadTaskInput[] {
   return createDownloadPlan(
     context,
     course,
     nodes,
     new Set(collectAttachmentKeys(nodes)),
+    [],
+    downloadRoot,
   );
 }
 

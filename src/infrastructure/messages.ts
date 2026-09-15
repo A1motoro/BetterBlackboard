@@ -26,6 +26,12 @@ export interface DownloadsCancelMessage {
   taskId: string;
 }
 
+export interface DownloadsCancelAllMessage {
+  v: 1;
+  type: 'downloads.cancelAll';
+  requestId: string;
+}
+
 export interface DownloadsSnapshotRequest {
   v: 1;
   type: 'downloads.snapshot.get';
@@ -88,6 +94,7 @@ export type ExtensionRequest =
   | ApiRequestMessage
   | DownloadsEnqueueMessage
   | DownloadsCancelMessage
+  | DownloadsCancelAllMessage
   | DownloadsSnapshotRequest
   | SiteInjectMessage
   | CoursesTrackingGetMessage
@@ -123,6 +130,7 @@ const REQUEST_TYPES = new Set<string>([
   'api.request',
   'downloads.enqueue',
   'downloads.cancel',
+  'downloads.cancelAll',
   'downloads.snapshot.get',
   'site.inject',
   'courses.tracking.get',
