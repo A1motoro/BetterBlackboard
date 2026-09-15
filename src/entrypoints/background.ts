@@ -218,6 +218,9 @@ export default defineBackground(() => {
           case 'history.clear':
             await historyStore.delete(message.coursePk1, message.contentPk1);
             return { ok: true, data: null };
+          case 'settings.openDownloads':
+            await browser.tabs.create({ url: 'chrome://settings/downloads' });
+            return { ok: true, data: null };
           default:
             return {
               ok: false,

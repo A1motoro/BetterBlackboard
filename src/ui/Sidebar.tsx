@@ -807,11 +807,18 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
 
   const handleDownloadRootChange = (root: string): void => {
     setDownloadRootState(root);
-    void setDownloadRoot(root).catch(reportFailure);
+  };
+
+  const handleDownloadRootCommit = (): void => {
+    void setDownloadRoot(downloadRoot).catch(reportFailure);
   };
 
   const openChromeSettings = (): void => {
-    void browser.tabs.create({ url: 'chrome://settings/downloads' });
+    void send<null>({
+      v: 1,
+      type: 'settings.openDownloads',
+      requestId: requestId(),
+    }).catch(reportFailure);
   };
 
   const retryDownload = (task: DownloadTask): void => {
@@ -1050,6 +1057,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
         onRetry={retryDownload}
         downloadRoot={downloadRoot}
         onDownloadRootChange={handleDownloadRootChange}
+        onDownloadRootCommit={handleDownloadRootCommit}
         onOpenChromeSettings={openChromeSettings}
       />
     </aside>

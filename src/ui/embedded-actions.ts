@@ -2,6 +2,7 @@ import {
   collectAttachmentKeys,
   createDownloadPlan,
 } from '../core/download-plan';
+import { getDownloadRoot } from '../core/naming';
 import type {
   ContentNode,
   Course,
@@ -201,9 +202,10 @@ export function mountEmbeddedDownloadActions(
     contentPk1: string,
     rootFolder?: string,
   ): Promise<EnqueueResult> => {
-    const [course, nodes] = await Promise.all([
+    const [course, nodes, downloadRoot] = await Promise.all([
       coursePromise,
       client.loadCurrentContent(context.coursePk1, contentPk1),
+      getDownloadRoot(),
     ]);
     const keys = new Set(collectAttachmentKeys(nodes));
     const tasks = createDownloadPlan(
@@ -212,6 +214,7 @@ export function mountEmbeddedDownloadActions(
       nodes,
       keys,
       rootFolder ? [rootFolder] : [],
+      downloadRoot,
     );
     return enqueue(tasks);
   };
@@ -220,9 +223,10 @@ export function mountEmbeddedDownloadActions(
     contentPk1: string,
     title: string,
   ): Promise<EnqueueResult> => {
-    const [course, attachments] = await Promise.all([
+    const [course, attachments, downloadRoot] = await Promise.all([
       coursePromise,
       client.loadAttachments(context.coursePk1, contentPk1),
+      getDownloadRoot(),
     ]);
     const node: ContentNode = {
       pk1: contentPk1,
@@ -234,7 +238,9 @@ export function mountEmbeddedDownloadActions(
       unsupported: false,
     };
     const keys = new Set(collectAttachmentKeys([node]));
-    return enqueue(createDownloadPlan(context, course, [node], keys, [title]));
+    return enqueue(
+      createDownloadPlan(context, course, [node], keys, [title], downloadRoot),
+    );
   };
 
   const scan = (): void => {

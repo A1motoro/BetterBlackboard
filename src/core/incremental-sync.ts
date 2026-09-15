@@ -112,6 +112,7 @@ export function createIncrementalDownloadPlan(
   nodes: ContentNode[],
   downloadableFingerprints: AttachmentFingerprint[],
   rootFolders: readonly string[] = [],
+  downloadRoot?: string,
 ): DownloadTaskInput[] {
   // 构建需要下载的附件键集合
   const downloadableKeys = new Set(
@@ -125,6 +126,7 @@ export function createIncrementalDownloadPlan(
     nodes,
     downloadableKeys,
     rootFolders,
+    downloadRoot,
   );
 }
 

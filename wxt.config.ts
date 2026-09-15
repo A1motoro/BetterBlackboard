@@ -11,7 +11,7 @@ export default defineConfig({
     name: 'Better Blackboard',
     description: '在 Blackboard Learn 中选择并批量下载课程附件。',
     version: '0.1.0',
-    permissions: ['activeTab', 'downloads', 'storage', 'scripting'],
+    permissions: ['activeTab', 'downloads', 'storage', 'scripting', 'tabs'],
     optional_host_permissions: ['https://bb.cuhk.edu.cn/*'],
     web_accessible_resources: [
       {

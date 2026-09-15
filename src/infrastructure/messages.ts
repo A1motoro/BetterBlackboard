@@ -90,6 +90,12 @@ export interface HistoryClearMessage {
   contentPk1: string;
 }
 
+export interface SettingsOpenDownloadsMessage {
+  v: 1;
+  type: 'settings.openDownloads';
+  requestId: string;
+}
+
 export type ExtensionRequest =
   | ApiRequestMessage
   | DownloadsEnqueueMessage
@@ -102,7 +108,8 @@ export type ExtensionRequest =
   | CoursesTrackingHomeSyncedMessage
   | HistoryGetMessage
   | HistorySaveMessage
-  | HistoryClearMessage;
+  | HistoryClearMessage
+  | SettingsOpenDownloadsMessage;
 
 export type ExtensionResponse<T = unknown> =
   { ok: true; data: T } | { ok: false; error: SerializedBbError };
@@ -139,6 +146,7 @@ const REQUEST_TYPES = new Set<string>([
   'history.get',
   'history.save',
   'history.clear',
+  'settings.openDownloads',
 ] satisfies ExtensionRequest['type'][]);
 
 export function requestId(): string {

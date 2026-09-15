@@ -31,6 +31,7 @@ describe('DownloadPanel', () => {
         onRetry={vi.fn()}
         downloadRoot="BB"
         onDownloadRootChange={vi.fn()}
+        onDownloadRootCommit={vi.fn()}
         onOpenChromeSettings={vi.fn()}
       />,
     );
@@ -50,6 +51,7 @@ describe('DownloadPanel', () => {
         onRetry={vi.fn()}
         downloadRoot="BB"
         onDownloadRootChange={vi.fn()}
+        onDownloadRootCommit={vi.fn()}
         onOpenChromeSettings={vi.fn()}
       />,
     );

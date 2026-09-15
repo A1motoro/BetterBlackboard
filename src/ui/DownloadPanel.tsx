@@ -24,6 +24,7 @@ interface DownloadPanelProps {
   onRetry: (task: DownloadTask) => void;
   downloadRoot: string;
   onDownloadRootChange: (root: string) => void;
+  onDownloadRootCommit: () => void;
   onOpenChromeSettings: () => void;
 }
 
@@ -34,6 +35,7 @@ export function DownloadPanel({
   onRetry,
   downloadRoot,
   onDownloadRootChange,
+  onDownloadRootCommit,
   onOpenChromeSettings,
 }: DownloadPanelProps) {
   const hasCancellableTasks = tasks.some((task) =>
@@ -141,6 +143,13 @@ export function DownloadPanel({
               type="text"
               value={downloadRoot}
               onChange={(e) => onDownloadRootChange(e.target.value)}
+              onBlur={onDownloadRootCommit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  onDownloadRootCommit();
+                  e.currentTarget.blur();
+                }
+              }}
               placeholder="BB"
               className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
