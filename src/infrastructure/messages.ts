@@ -26,6 +26,12 @@ export interface DownloadsCancelMessage {
   taskId: string;
 }
 
+export interface DownloadsCancelAllMessage {
+  v: 1;
+  type: 'downloads.cancelAll';
+  requestId: string;
+}
+
 export interface DownloadsSnapshotRequest {
   v: 1;
   type: 'downloads.snapshot.get';
@@ -84,10 +90,17 @@ export interface HistoryClearMessage {
   contentPk1: string;
 }
 
+export interface SettingsOpenDownloadsMessage {
+  v: 1;
+  type: 'settings.openDownloads';
+  requestId: string;
+}
+
 export type ExtensionRequest =
   | ApiRequestMessage
   | DownloadsEnqueueMessage
   | DownloadsCancelMessage
+  | DownloadsCancelAllMessage
   | DownloadsSnapshotRequest
   | SiteInjectMessage
   | CoursesTrackingGetMessage
@@ -95,7 +108,8 @@ export type ExtensionRequest =
   | CoursesTrackingHomeSyncedMessage
   | HistoryGetMessage
   | HistorySaveMessage
-  | HistoryClearMessage;
+  | HistoryClearMessage
+  | SettingsOpenDownloadsMessage;
 
 export type ExtensionResponse<T = unknown> =
   { ok: true; data: T } | { ok: false; error: SerializedBbError };
@@ -123,6 +137,7 @@ const REQUEST_TYPES = new Set<string>([
   'api.request',
   'downloads.enqueue',
   'downloads.cancel',
+  'downloads.cancelAll',
   'downloads.snapshot.get',
   'site.inject',
   'courses.tracking.get',
@@ -131,6 +146,7 @@ const REQUEST_TYPES = new Set<string>([
   'history.get',
   'history.save',
   'history.clear',
+  'settings.openDownloads',
 ] satisfies ExtensionRequest['type'][]);
 
 export function requestId(): string {

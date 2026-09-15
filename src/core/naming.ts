@@ -3,6 +3,8 @@ const INVALID_CHARACTERS = /[\u0000-\u001f\u007f\\/:*?"<>|]/g;
 const RESERVED_WINDOWS_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i;
 const MAX_SEGMENT_CODEPOINTS = 100;
 const MAX_RELATIVE_PATH_CODEPOINTS = 220;
+const DEFAULT_DOWNLOAD_ROOT = 'BB';
+const DOWNLOAD_ROOT_STORAGE_KEY = 'bb_download_root';
 
 function shortHash(value: string): string {
   let hash = 0x811c9dc5;
@@ -65,9 +67,11 @@ export function buildTargetPath(
   courseFolder: string,
   relativeFolders: string[],
   fileName: string,
+  downloadRoot?: string,
 ): string {
+  const root = downloadRoot || DEFAULT_DOWNLOAD_ROOT;
   const segments = [
-    'BB',
+    sanitizeSegment(root),
     sanitizeSegment(courseFolder),
     ...relativeFolders.map(sanitizeSegment),
     sanitizeSegment(fileName),
@@ -89,9 +93,21 @@ export function buildTargetPath(
   const identity = segments.join('/');
   const finalName = shortened.at(-1) ?? '_';
   return [
-    'BB',
+    sanitizeSegment(root),
     truncateCodePoints(shortened[1] ?? '_', 32),
     `_path~${shortHash(identity)}`,
     finalName,
   ].join('/');
+}
+
+export async function getDownloadRoot(): Promise<string> {
+  const result = await browser.storage.local.get(DOWNLOAD_ROOT_STORAGE_KEY);
+  return typeof result[DOWNLOAD_ROOT_STORAGE_KEY] === 'string'
+    ? result[DOWNLOAD_ROOT_STORAGE_KEY]
+    : DEFAULT_DOWNLOAD_ROOT;
+}
+
+export async function setDownloadRoot(root: string): Promise<void> {
+  const sanitized = sanitizeSegment(root) || DEFAULT_DOWNLOAD_ROOT;
+  await browser.storage.local.set({ [DOWNLOAD_ROOT_STORAGE_KEY]: sanitized });
 }

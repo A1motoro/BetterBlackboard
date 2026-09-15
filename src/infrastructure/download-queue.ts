@@ -173,6 +173,33 @@ export class PersistentDownloadQueue {
     return this.snapshot();
   }
 
+  async cancelAll(): Promise<DownloadTask[]> {
+    await this.init();
+
+    const now = Date.now();
+    const cancellable = [...this.tasks.values()].filter(
+      (task) =>
+        task.status === 'queued' ||
+        task.status === 'starting' ||
+        task.status === 'in_progress',
+    );
+
+    if (cancellable.length === 0) return this.snapshot();
+
+    for (const task of cancellable) {
+      this.update(task.taskId, { status: 'canceled', updatedAt: now });
+      if (task.chromeDownloadId !== undefined) {
+        await browser.downloads
+          .cancel(task.chromeDownloadId)
+          .catch(() => undefined);
+      }
+    }
+
+    this.pump();
+    await this.publish();
+    return this.snapshot();
+  }
+
   async handleDownloadChanged(
     delta: chrome.downloads.DownloadDelta,
   ): Promise<void> {

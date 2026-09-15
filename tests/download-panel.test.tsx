@@ -27,7 +27,12 @@ describe('DownloadPanel', () => {
       <DownloadPanel
         tasks={[task('canceled')]}
         onCancel={vi.fn()}
+        onCancelAll={vi.fn()}
         onRetry={vi.fn()}
+        downloadRoot="BB"
+        onDownloadRootChange={vi.fn()}
+        onDownloadRootCommit={vi.fn()}
+        onOpenChromeSettings={vi.fn()}
       />,
     );
 
@@ -42,7 +47,12 @@ describe('DownloadPanel', () => {
       <DownloadPanel
         tasks={[task('interrupted', 'NETWORK_FAILED')]}
         onCancel={vi.fn()}
+        onCancelAll={vi.fn()}
         onRetry={vi.fn()}
+        downloadRoot="BB"
+        onDownloadRootChange={vi.fn()}
+        onDownloadRootCommit={vi.fn()}
+        onOpenChromeSettings={vi.fn()}
       />,
     );
 
