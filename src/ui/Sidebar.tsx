@@ -796,6 +796,20 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
   };
 
   const cancelAllDownloads = (): void => {
+    const activeTasks = state.tasks.filter(
+      (task) =>
+        task.status === 'queued' ||
+        task.status === 'starting' ||
+        task.status === 'in_progress',
+    );
+
+    if (activeTasks.length === 0) return;
+
+    const confirmed = window.confirm(
+      `确定要停止全部 ${activeTasks.length} 个下载任务吗？`,
+    );
+    if (!confirmed) return;
+
     void send<DownloadTask[]>({
       v: 1,
       type: 'downloads.cancelAll',
