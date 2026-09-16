@@ -106,10 +106,14 @@ export class PersistentDownloadQueue {
     return this.snapshot();
   }
 
-  async enqueue(inputs: DownloadTaskInput[]): Promise<EnqueueResult> {
+  async enqueue(
+    inputs: DownloadTaskInput[],
+    preserveBatchId?: number,
+  ): Promise<EnqueueResult> {
     await this.init();
 
     const now = Date.now();
+    const batchId = preserveBatchId ?? now;
     const known = new Set<string>();
     for (const task of this.tasks.values()) {
       if (task.status === 'canceled' || task.status === 'interrupted') continue;
@@ -142,6 +146,7 @@ export class PersistentDownloadQueue {
         status: 'queued',
         createdAt: now,
         updatedAt: now,
+        batchId,
       };
       this.tasks.set(task.taskId, task);
       accepted += 1;
@@ -243,7 +248,12 @@ export class PersistentDownloadQueue {
     const tasks = Array.isArray(stored[STORAGE_KEY])
       ? (stored[STORAGE_KEY] as DownloadTask[])
       : [];
-    for (const task of tasks) this.tasks.set(task.taskId, task);
+    for (const task of tasks) {
+      if (task.batchId === undefined) {
+        task.batchId = task.createdAt;
+      }
+      this.tasks.set(task.taskId, task);
+    }
     for (const task of this.tasks.values()) {
       if (task.status === 'complete')
         await this.tracking.remember(task.targetPath);

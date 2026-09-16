@@ -3,25 +3,8 @@ import type { SidebarLayout } from '../core/sidebar-layout';
 import type { DownloadTask } from '../core/types';
 import { buttonStyles } from './buttonStyles';
 
-function formatBytes(value: number): string {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
-  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`;
-  return `${(value / 1024 ** 3).toFixed(1)} GB`;
-}
-
-const STATUS_LABEL: Record<DownloadTask['status'], string> = {
-  queued: '排队中',
-  starting: '正在启动',
-  in_progress: '下载中',
-  complete: '已完成',
-  interrupted: '下载失败',
-  canceled: '已取消',
-};
-
 interface DownloadPanelProps {
   tasks: DownloadTask[];
-  onCancel: (taskId: string) => void;
   onCancelAll: () => void;
   onRetry: (task: DownloadTask) => void;
   downloadRoot: string;
@@ -34,7 +17,6 @@ interface DownloadPanelProps {
 
 export function DownloadPanel({
   tasks,
-  onCancel,
   onCancelAll,
   onRetry,
   downloadRoot,
@@ -44,14 +26,33 @@ export function DownloadPanel({
   sidebarLayout,
   onSidebarLayoutChange,
 }: DownloadPanelProps) {
+  const latestBatchId = Math.max(0, ...tasks.map((t) => t.batchId || 0));
+  const currentBatchTasks = tasks.filter(
+    (t) => t.batchId === latestBatchId && t.status !== 'canceled',
+  );
+
+  const completedCount = currentBatchTasks.filter(
+    (t) => t.status === 'complete',
+  ).length;
+  const failedTasks = currentBatchTasks.filter(
+    (t) => t.status === 'interrupted',
+  );
+  const totalCount = currentBatchTasks.length;
+  const progressPercent =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const hasActiveTasks = currentBatchTasks.some((t) =>
+    ['queued', 'starting', 'in_progress'].includes(t.status),
+  );
   const hasCancellableTasks = tasks.some((task) =>
     ['queued', 'starting', 'in_progress'].includes(task.status),
   );
+  const showBatchProgress =
+    totalCount > 0 && (hasActiveTasks || failedTasks.length > 0);
 
   return (
     <section className="shrink-0 border-t border-slate-200">
       <div className="space-y-3 px-4 py-3">
-        {tasks.length > 0 && (
+        {showBatchProgress && (
           <>
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
@@ -67,74 +68,53 @@ export function DownloadPanel({
                 </button>
               )}
             </div>
-            <div className="max-h-48 space-y-2 overflow-auto">
-              {tasks.map((task) => {
-                const total = task.totalBytes ?? -1;
-                const received = task.bytesReceived ?? 0;
-                const progress =
-                  total > 0 ? Math.min(100, (received / total) * 100) : null;
-                const canCancel = [
-                  'queued',
-                  'starting',
-                  'in_progress',
-                ].includes(task.status);
-                const error = visibleDownloadError(task);
-
-                return (
-                  <article
-                    key={task.taskId}
-                    className="rounded-lg bg-slate-50 p-2.5"
-                  >
-                    <div className="flex gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-800">
-                          {task.sourceFileName}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          {STATUS_LABEL[task.status]}
-                          {total > 0 &&
-                            ` · ${formatBytes(received)} / ${formatBytes(total)}`}
-                        </p>
-                      </div>
-                      {canCancel && (
-                        <button
-                          type="button"
-                          className="text-[11px] text-slate-500 hover:text-red-600"
-                          onClick={() => onCancel(task.taskId)}
-                        >
-                          取消
-                        </button>
-                      )}
-                      {task.status === 'interrupted' && (
-                        <button
-                          type="button"
-                          className="text-[11px] text-slate-900 hover:text-slate-700"
-                          onClick={() => onRetry(task)}
-                        >
-                          重试
-                        </button>
-                      )}
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className={`h-full rounded-full bg-slate-900 ${
-                          progress === null && task.status === 'in_progress'
-                            ? 'animate-pulse'
-                            : ''
-                        }`}
-                        style={{
-                          width: `${progress ?? (task.status === 'complete' ? 100 : 35)}%`,
-                        }}
-                      />
-                    </div>
-                    {error && (
-                      <p className="mt-1.5 break-words text-[11px] text-red-600">
-                        {error}
-                      </p>
-                    )}
-                  </article>
-                );
-              })}
+            <div className="space-y-2">
+              {hasActiveTasks && (
+                <div className="rounded-lg bg-slate-50 p-2.5">
+                  <p className="text-xs font-medium text-slate-800">
+                    已完成 {completedCount}/{totalCount} · {progressPercent}%
+                  </p>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-slate-900 transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {failedTasks.length > 0 && (
+                <div className="max-h-32 space-y-1.5 overflow-auto">
+                  {failedTasks.map((task) => {
+                    const error = visibleDownloadError(task);
+                    return (
+                      <article
+                        key={task.taskId}
+                        className="rounded-lg bg-red-50 p-2.5"
+                      >
+                        <div className="flex gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium text-red-800">
+                              {task.sourceFileName}
+                            </p>
+                            {error && (
+                              <p className="mt-0.5 text-[11px] text-red-600">
+                                {error}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className={buttonStyles.linkSmallPrimary}
+                            onClick={() => onRetry(task)}
+                          >
+                            重试
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </>
         )}

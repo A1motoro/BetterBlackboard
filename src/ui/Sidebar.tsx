@@ -467,7 +467,10 @@ export function Sidebar({
   const allSelected =
     allKeys.length > 0 && allKeys.every((key) => state.selected.has(key));
 
-  const enqueue = async (tasks: DownloadTaskInput[]): Promise<void> => {
+  const enqueue = async (
+    tasks: DownloadTaskInput[],
+    batchId?: number,
+  ): Promise<void> => {
     if (tasks.length === 0) {
       dispatch({
         type: 'notice',
@@ -480,6 +483,7 @@ export function Sidebar({
       type: 'downloads.enqueue',
       requestId: requestId(),
       tasks,
+      ...(batchId !== undefined ? { batchId } : {}),
     });
     dispatch({ type: 'tasks', tasks: result.tasks });
     dispatch({ type: 'notice', notice: buildEnqueueNotice(result) });
@@ -837,17 +841,6 @@ export function Sidebar({
     })().catch(reportFailure);
   };
 
-  const cancelDownload = (taskId: string): void => {
-    void send<DownloadTask[]>({
-      v: 1,
-      type: 'downloads.cancel',
-      requestId: requestId(),
-      taskId,
-    })
-      .then((tasks) => dispatch({ type: 'tasks', tasks }))
-      .catch(reportFailure);
-  };
-
   const cancelAllDownloads = (): void => {
     const activeTasks = state.tasks.filter(
       (task) =>
@@ -901,7 +894,7 @@ export function Sidebar({
       sourceFileName: task.sourceFileName,
       targetPath: task.targetPath,
     };
-    void enqueue([input]).catch(reportFailure);
+    void enqueue([input], task.batchId).catch(reportFailure);
   };
 
   const didHomeSync = useRef(false);
@@ -1125,7 +1118,6 @@ export function Sidebar({
 
       <DownloadPanel
         tasks={currentTasks}
-        onCancel={cancelDownload}
         onCancelAll={cancelAllDownloads}
         onRetry={retryDownload}
         downloadRoot={downloadRoot}

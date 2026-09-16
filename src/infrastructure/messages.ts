@@ -17,6 +17,7 @@ export interface DownloadsEnqueueMessage {
   type: 'downloads.enqueue';
   requestId: string;
   tasks: DownloadTaskInput[];
+  batchId?: number;
 }
 
 export interface DownloadsCancelMessage {
