@@ -878,7 +878,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
   }
 
   return (
-    <aside className="fixed top-4 right-4 flex h-[calc(100vh-2rem)] w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
+    <aside className="fixed inset-y-0 right-0 flex h-full w-[380px] flex-col overflow-hidden rounded-none border-l border-slate-200 bg-white text-slate-900 shadow-[-8px_0_24px_rgba(0,0,0,0.08)]">
       <header className="flex shrink-0 items-start gap-3 bg-slate-950 px-4 py-3 text-white">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-indigo-300">

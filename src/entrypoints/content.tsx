@@ -13,8 +13,8 @@ import '../assets/sidebar.css';
 
 const PAGE_LAYOUT_STYLE_ID = 'better-blackboard-page-layout';
 const SIDEBAR_OPEN_ATTRIBUTE = 'data-better-blackboard-sidebar-open';
-// Sidebar is 380px wide with a 16px inset on each side.
-const SIDEBAR_INSET = '412px';
+// Sidebar is 380px wide, flush to right edge.
+const SIDEBAR_INSET = '380px';
 
 function ensurePageLayoutStyle(): HTMLStyleElement {
   const existing = document.getElementById(PAGE_LAYOUT_STYLE_ID);
