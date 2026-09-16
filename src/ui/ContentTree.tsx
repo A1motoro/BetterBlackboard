@@ -29,7 +29,7 @@ function SelectionCheckbox({
       checked={checked}
       disabled={disabled}
       aria-label={label}
-      className="h-4 w-4 shrink-0 accent-indigo-600"
+      className="h-4 w-4 shrink-0 accent-slate-900"
       onChange={(event) => onChange(event.target.checked)}
     />
   );
@@ -86,7 +86,7 @@ function NodeRow({
         return (
           <label
             key={key}
-            className="ml-8 flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-indigo-50"
+            className="ml-8 flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50"
           >
             <SelectionCheckbox
               checked={selected.has(key)}

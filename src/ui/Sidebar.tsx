@@ -74,6 +74,7 @@ import { DDLSection } from './DDLView';
 import { DownloadPanel } from './DownloadPanel';
 import { DiffPreviewComponent } from './DiffPreview';
 import { buildEnqueueNotice, type Notice } from './notice-builder';
+import { buttonStyles } from './buttonStyles';
 
 const POLL_INTERVAL = 1_200;
 const PENDING_STATUSES = new Set<DownloadTask['status']>([
@@ -927,7 +928,7 @@ export function Sidebar({
     return (
       <button
         type="button"
-        className="fixed top-24 right-0 rounded-l-xl bg-indigo-600 px-3 py-3 text-sm font-semibold text-white shadow-xl hover:bg-indigo-700"
+        className="fixed top-24 right-0 rounded-l-xl bg-slate-900 px-3 py-3 text-sm font-semibold text-white shadow-xl hover:bg-slate-800"
         onClick={() => dispatch({ type: 'collapse', value: false })}
       >
         BB 下载
@@ -939,7 +940,7 @@ export function Sidebar({
     <aside className={styles.asideClassName}>
       <header className="flex shrink-0 items-start gap-3 bg-slate-950 px-4 py-3 text-white">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-indigo-300">
+          <p className="text-xs font-medium text-slate-300">
             Better Blackboard
           </p>
           <h1 className="truncate text-sm font-semibold">
@@ -962,7 +963,7 @@ export function Sidebar({
           className={`flex shrink-0 items-start gap-2 px-4 py-2 text-xs ${
             state.notice.tone === 'error'
               ? 'bg-red-50 text-red-800'
-              : 'bg-indigo-50 text-indigo-800'
+              : 'bg-slate-50 text-slate-800'
           }`}
         >
           <span className="min-w-0 flex-1 break-words">
@@ -1002,7 +1003,7 @@ export function Sidebar({
               type="button"
               className={`flex-1 px-4 py-2.5 text-sm font-medium ${
                 state.viewMode === 'files'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  ? 'border-b-2 border-slate-900 text-slate-900'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               onClick={() => dispatch({ type: 'setViewMode', mode: 'files' })}
@@ -1013,7 +1014,7 @@ export function Sidebar({
               type="button"
               className={`flex-1 px-4 py-2.5 text-sm font-medium ${
                 state.viewMode === 'ddl'
-                  ? 'border-b-2 border-indigo-600 text-indigo-600'
+                  ? 'border-b-2 border-slate-900 text-slate-900'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
               onClick={() => dispatch({ type: 'setViewMode', mode: 'ddl' })}
@@ -1052,7 +1053,7 @@ export function Sidebar({
           <label className="flex shrink-0 cursor-pointer items-center gap-2 border-b border-slate-200 px-4 py-2.5 text-xs text-slate-600">
             <input
               type="checkbox"
-              className="h-4 w-4 accent-indigo-600"
+              className="h-4 w-4 accent-slate-900"
               checked={state.tracked.has(context.coursePk1)}
               onChange={(event) => {
                 const course =
@@ -1067,7 +1068,7 @@ export function Sidebar({
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <button
               type="button"
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+              className="text-xs font-medium text-slate-900 hover:text-slate-700"
               onClick={() =>
                 dispatch({
                   type: 'toggle',
@@ -1112,7 +1113,7 @@ export function Sidebar({
               <button
                 type="button"
                 disabled={state.selected.size === 0}
-                className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className={`w-full ${buttonStyles.primaryLarge}`}
                 onClick={startDownload}
               >
                 增量下载

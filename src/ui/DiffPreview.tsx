@@ -1,5 +1,6 @@
 import type { DiffPreview } from '../core/diff-preview';
 import { formatPath, getChangeTypeLabel } from '../core/diff-preview';
+import { buttonStyles } from './buttonStyles';
 
 interface DiffPreviewProps {
   preview: DiffPreview;
@@ -28,14 +29,14 @@ export function DiffPreviewComponent({
         <div className="mt-3 flex gap-2">
           <button
             type="button"
-            className="text-xs text-indigo-600 hover:text-indigo-800"
+            className={buttonStyles.linkSmallPrimary}
             onClick={onForceFullSync}
           >
             强制重新下载全部
           </button>
           <button
             type="button"
-            className="text-xs text-slate-500 hover:text-slate-700"
+            className={buttonStyles.linkSmall}
             onClick={onCancel}
           >
             取消
@@ -109,7 +110,7 @@ export function DiffPreviewComponent({
       <div className="mt-3 flex justify-between gap-2">
         <button
           type="button"
-          className="text-xs text-slate-500 hover:text-slate-700"
+          className={buttonStyles.linkSmall}
           onClick={onForceFullSync}
         >
           强制全量同步
@@ -117,14 +118,14 @@ export function DiffPreviewComponent({
         <div className="flex gap-2">
           <button
             type="button"
-            className="rounded-lg px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
+            className={`text-xs ${buttonStyles.secondary}`}
             onClick={onCancel}
           >
             取消
           </button>
           <button
             type="button"
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+            className={`text-xs ${buttonStyles.primary}`}
             onClick={onDownload}
           >
             下载变化的文件

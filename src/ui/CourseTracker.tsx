@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { filterCurrentTermCourses } from '../core/term-filter';
 import type { Course } from '../core/types';
+import { buttonStyles } from './buttonStyles';
 
 interface CourseTrackerProps {
   courses: Course[];
@@ -50,7 +51,7 @@ export function CourseTracker({
             <button
               type="button"
               disabled={syncing || tracked.size === 0}
-              className="rounded-lg border border-indigo-600 bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-300"
+              className={`text-xs ${buttonStyles.primary}`}
               onClick={onSyncNow}
             >
               {syncing ? '正在同步…' : '立即同步'}
@@ -65,7 +66,7 @@ export function CourseTracker({
             <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
               <input
                 type="checkbox"
-                className="h-3.5 w-3.5 accent-indigo-600"
+                className="h-3.5 w-3.5 accent-slate-900"
                 checked={showAvailableOnly}
                 onChange={(event) => setShowAvailableOnly(event.target.checked)}
               />
@@ -74,7 +75,7 @@ export function CourseTracker({
             <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
               <input
                 type="checkbox"
-                className="h-3.5 w-3.5 accent-indigo-600"
+                className="h-3.5 w-3.5 accent-slate-900"
                 checked={showCurrentTermOnly}
                 onChange={(event) =>
                   setShowCurrentTermOnly(event.target.checked)
@@ -105,7 +106,7 @@ export function CourseTracker({
                     <label className="flex flex-1 cursor-pointer items-start gap-2">
                       <input
                         type="checkbox"
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-indigo-600"
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-slate-900"
                         checked={isTracked}
                         aria-label={`跟踪 ${course.name}`}
                         onChange={(event) =>
@@ -119,7 +120,7 @@ export function CourseTracker({
                     <button
                       type="button"
                       disabled={downloadDisabled}
-                      className="shrink-0 text-xs text-indigo-600 hover:text-indigo-800 disabled:cursor-not-allowed disabled:text-slate-400"
+                      className="shrink-0 text-xs text-slate-900 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-400"
                       onClick={() => onDownloadWholeCourse(course)}
                       title={
                         downloadDisabled && isInSyncRound

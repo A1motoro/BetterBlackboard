@@ -1,5 +1,6 @@
 import { formatDueDate, isOverdue } from '../core/ddl-aggregation';
 import type { Assignment } from '../core/types';
+import { buttonStyles } from './buttonStyles';
 
 interface DDLListProps {
   assignments: Assignment[];
@@ -141,7 +142,7 @@ export function DDLSection({
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+            className={buttonStyles.linkSmallPrimary}
             type="button"
           >
             {loading ? '刷新中...' : '刷新'}
