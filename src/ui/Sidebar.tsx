@@ -837,17 +837,6 @@ export function Sidebar({
     })().catch(reportFailure);
   };
 
-  const cancelDownload = (taskId: string): void => {
-    void send<DownloadTask[]>({
-      v: 1,
-      type: 'downloads.cancel',
-      requestId: requestId(),
-      taskId,
-    })
-      .then((tasks) => dispatch({ type: 'tasks', tasks }))
-      .catch(reportFailure);
-  };
-
   const cancelAllDownloads = (): void => {
     const activeTasks = state.tasks.filter(
       (task) =>
@@ -1125,7 +1114,6 @@ export function Sidebar({
 
       <DownloadPanel
         tasks={currentTasks}
-        onCancel={cancelDownload}
         onCancelAll={cancelAllDownloads}
         onRetry={retryDownload}
         downloadRoot={downloadRoot}

@@ -18,6 +18,7 @@ function task(status: DownloadTask['status'], error?: string): DownloadTask {
     status,
     createdAt: 1,
     updatedAt: 1,
+    batchId: 1,
     ...(error === undefined ? {} : { error }),
   };
 }

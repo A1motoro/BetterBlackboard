@@ -66,6 +66,7 @@ export interface DownloadTask extends DownloadTaskInput {
   error?: string;
   createdAt: number;
   updatedAt: number;
+  batchId: number;
 }
 
 export type ConnectionState =
