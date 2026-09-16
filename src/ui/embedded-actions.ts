@@ -92,7 +92,7 @@ function createButton(
       letter-spacing: 0.01em;
       white-space: nowrap;
       color: #fff;
-      background: #4f46e5;
+      background: #0f172a;
       box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%);
     }
     button[data-variant="toolbar"] { padding: 7px 12px 7px 10px; }
@@ -103,8 +103,8 @@ function createButton(
       flex: none;
       fill: currentColor;
     }
-    button:hover { background: #4338ca; }
-    button:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; }
+    button:hover { background: #1e293b; }
+    button:focus-visible { outline: 2px solid #64748b; outline-offset: 2px; }
     button:disabled { cursor: wait; opacity: .7; }
   `;
 
