@@ -1,6 +1,7 @@
 import { visibleDownloadError } from '../core/download-status';
 import type { SidebarLayout } from '../core/sidebar-layout';
 import type { DownloadTask } from '../core/types';
+import { buttonStyles } from './buttonStyles';
 
 function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`;
@@ -59,7 +60,7 @@ export function DownloadPanel({
               {hasCancellableTasks && (
                 <button
                   type="button"
-                  className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                  className={`text-xs ${buttonStyles.dangerFilled}`}
                   onClick={onCancelAll}
                 >
                   停止全部下载
@@ -107,7 +108,7 @@ export function DownloadPanel({
                       {task.status === 'interrupted' && (
                         <button
                           type="button"
-                          className="text-[11px] text-indigo-600 hover:text-indigo-800"
+                          className="text-[11px] text-slate-900 hover:text-slate-700"
                           onClick={() => onRetry(task)}
                         >
                           重试
@@ -116,7 +117,7 @@ export function DownloadPanel({
                     </div>
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
                       <div
-                        className={`h-full rounded-full bg-indigo-600 ${
+                        className={`h-full rounded-full bg-slate-900 ${
                           progress === null && task.status === 'in_progress'
                             ? 'animate-pulse'
                             : ''
@@ -160,7 +161,7 @@ export function DownloadPanel({
             />
             <button
               type="button"
-              className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+              className={`shrink-0 text-xs ${buttonStyles.primary}`}
               onClick={onOpenChromeSettings}
             >
               更改 Chrome 下载目录
@@ -176,10 +177,10 @@ export function DownloadPanel({
           <div className="flex gap-2">
             <button
               type="button"
-              className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
                 sidebarLayout === 'rail'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-100'
+                  ? 'bg-slate-900 text-white'
+                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
               }`}
               onClick={() => onSidebarLayoutChange('rail')}
             >
@@ -187,10 +188,10 @@ export function DownloadPanel({
             </button>
             <button
               type="button"
-              className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
                 sidebarLayout === 'floating'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-slate-700 hover:bg-slate-100'
+                  ? 'bg-slate-900 text-white'
+                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
               }`}
               onClick={() => onSidebarLayoutChange('floating')}
             >
