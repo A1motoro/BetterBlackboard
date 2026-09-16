@@ -1,4 +1,5 @@
 import { visibleDownloadError } from '../core/download-status';
+import type { SidebarLayout } from '../core/sidebar-layout';
 import type { DownloadTask } from '../core/types';
 
 function formatBytes(value: number): string {
@@ -26,6 +27,8 @@ interface DownloadPanelProps {
   onDownloadRootChange: (root: string) => void;
   onDownloadRootCommit: () => void;
   onOpenChromeSettings: () => void;
+  sidebarLayout: SidebarLayout;
+  onSidebarLayoutChange: (layout: SidebarLayout) => void;
 }
 
 export function DownloadPanel({
@@ -37,6 +40,8 @@ export function DownloadPanel({
   onDownloadRootChange,
   onDownloadRootCommit,
   onOpenChromeSettings,
+  sidebarLayout,
+  onSidebarLayoutChange,
 }: DownloadPanelProps) {
   const hasCancellableTasks = tasks.some((task) =>
     ['queued', 'starting', 'in_progress'].includes(task.status),
@@ -164,6 +169,34 @@ export function DownloadPanel({
           <p className="text-[11px] text-slate-500">
             修改相对文件夹根目录（仅对新下载生效）
           </p>
+        </div>
+
+        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <h3 className="text-xs font-semibold text-slate-700">侧栏外观</h3>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                sidebarLayout === 'rail'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
+              }`}
+              onClick={() => onSidebarLayoutChange('rail')}
+            >
+              全高贴边
+            </button>
+            <button
+              type="button"
+              className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                sidebarLayout === 'floating'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
+              }`}
+              onClick={() => onSidebarLayoutChange('floating')}
+            >
+              圆角浮窗
+            </button>
+          </div>
         </div>
       </div>
     </section>

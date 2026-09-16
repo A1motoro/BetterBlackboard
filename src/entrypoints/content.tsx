@@ -7,40 +7,40 @@ import {
   FallbackApiTransport,
   FetchApiTransport,
 } from '../infrastructure/blackboard/transport';
+import { getSidebarStyles, type SidebarLayout } from '../core/sidebar-layout';
 import { Sidebar } from '../ui/Sidebar';
 import { mountEmbeddedDownloadActions } from '../ui/embedded-actions';
 import '../assets/sidebar.css';
 
 const PAGE_LAYOUT_STYLE_ID = 'better-blackboard-page-layout';
 const SIDEBAR_OPEN_ATTRIBUTE = 'data-better-blackboard-sidebar-open';
-// Sidebar is 380px wide, flush to right edge.
-const SIDEBAR_INSET = '380px';
 
-function ensurePageLayoutStyle(): HTMLStyleElement {
-  const existing = document.getElementById(PAGE_LAYOUT_STYLE_ID);
-  if (existing instanceof HTMLStyleElement) return existing;
-
-  const style = document.createElement('style');
-  style.id = PAGE_LAYOUT_STYLE_ID;
-  // `100%` resolves against <html>, which already excludes the scrollbar;
-  // `100vw` does not and leaves the page overflowing horizontally.
+function updatePageLayoutStyle(sidebarInset: string): void {
+  let style = document.getElementById(PAGE_LAYOUT_STYLE_ID);
+  if (!(style instanceof HTMLStyleElement)) {
+    style = document.createElement('style');
+    style.id = PAGE_LAYOUT_STYLE_ID;
+    (document.head ?? document.documentElement).append(style);
+  }
   style.textContent = `
     html[${SIDEBAR_OPEN_ATTRIBUTE}="true"] body {
       box-sizing: border-box !important;
-      width: calc(100% - ${SIDEBAR_INSET}) !important;
-      max-width: calc(100% - ${SIDEBAR_INSET}) !important;
+      width: calc(100% - ${sidebarInset}) !important;
+      max-width: calc(100% - ${sidebarInset}) !important;
       min-width: 0 !important;
       transition: width 180ms ease, max-width 180ms ease;
     }
     html[${SIDEBAR_OPEN_ATTRIBUTE}="true"] #globalNavPageNavArea,
     html[${SIDEBAR_OPEN_ATTRIBUTE}="true"] #topFrame {
       box-sizing: border-box !important;
-      width: calc(100vw - ${SIDEBAR_INSET}) !important;
-      right: ${SIDEBAR_INSET} !important;
+      width: calc(100vw - ${sidebarInset}) !important;
+      right: ${sidebarInset} !important;
     }
   `;
-  (document.head ?? document.documentElement).append(style);
-  return style;
+}
+
+function removePageLayoutStyle(): void {
+  document.getElementById(PAGE_LAYOUT_STYLE_ID)?.remove();
 }
 
 function setPageSqueezed(open: boolean): void {
@@ -56,12 +56,18 @@ const contentScript = defineContentScript({
   registration: 'runtime',
   cssInjectionMode: 'ui',
   async main(ctx) {
-    // WXT invalidates any previous instance before `main` runs, so re-injection
-    // always tears down and rebuilds; the sidebar drives the page layout.
-    const pageLayoutStyle = ensurePageLayoutStyle();
+    let currentLayout: SidebarLayout = 'rail';
+
+    const updateLayout = (layout: SidebarLayout) => {
+      currentLayout = layout;
+      const styles = getSidebarStyles(layout);
+      updatePageLayoutStyle(styles.pageInset);
+      window.dispatchEvent(new Event('resize'));
+    };
+
     ctx.onInvalidated(() => {
       setPageSqueezed(false);
-      pageLayoutStyle.remove();
+      removePageLayoutStyle();
     });
 
     const context = parseCourseContext(new URL(window.location.href));
@@ -76,8 +82,6 @@ const contentScript = defineContentScript({
         client,
         client.getCourse(context.coursePk1),
       );
-      // Registered here rather than in `onRemove`: the UI below is awaited, and
-      // an invalidation during that await would otherwise leak the observer.
       ctx.onInvalidated(removeEmbeddedActions);
     }
 
@@ -94,7 +98,13 @@ const contentScript = defineContentScript({
         root.render(
           <React.StrictMode>
             <Sidebar
-              onCollapsedChange={(collapsed) => setPageSqueezed(!collapsed)}
+              onCollapsedChange={(collapsed) => {
+                setPageSqueezed(!collapsed);
+                if (!collapsed) {
+                  updateLayout(currentLayout);
+                }
+              }}
+              onLayoutChange={(layout) => updateLayout(layout)}
             />
           </React.StrictMode>,
         );
