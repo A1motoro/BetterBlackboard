@@ -33,6 +33,8 @@ describe('DownloadPanel', () => {
         onDownloadRootChange={vi.fn()}
         onDownloadRootCommit={vi.fn()}
         onOpenChromeSettings={vi.fn()}
+        sidebarLayout="rail"
+        onSidebarLayoutChange={vi.fn()}
       />,
     );
 
@@ -53,6 +55,8 @@ describe('DownloadPanel', () => {
         onDownloadRootChange={vi.fn()}
         onDownloadRootCommit={vi.fn()}
         onOpenChromeSettings={vi.fn()}
+        sidebarLayout="rail"
+        onSidebarLayoutChange={vi.fn()}
       />,
     );
 

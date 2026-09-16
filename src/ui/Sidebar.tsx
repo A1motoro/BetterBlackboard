@@ -18,6 +18,12 @@ import {
 import { aggregateDDL, createTimeRange } from '../core/ddl-aggregation';
 import { createContentSnapshot } from '../core/fingerprint';
 import {
+  getSidebarLayout,
+  getSidebarStyles,
+  setSidebarLayout,
+  type SidebarLayout,
+} from '../core/sidebar-layout';
+import {
   detectDownloadDiff,
   addDownloadRecords,
   pruneHistory,
@@ -256,12 +262,19 @@ function createClient(): BlackboardClient {
 
 interface SidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
+  onLayoutChange?: (layout: SidebarLayout) => void;
   stateStore?: SidebarStateStore;
 }
 
-export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
+export function Sidebar({
+  onCollapsedChange,
+  onLayoutChange,
+  stateStore,
+}: SidebarProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [downloadRoot, setDownloadRootState] = useState('BB');
+  const [sidebarLayout, setSidebarLayoutState] =
+    useState<SidebarLayout>('rail');
   const pageUrl = useMemo(() => new URL(window.location.href), []);
   const context = useMemo(() => parseCourseContext(pageUrl), [pageUrl]);
   const isHome = useMemo(() => isBlackboardMainMenu(pageUrl), [pageUrl]);
@@ -276,10 +289,38 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
 
   const hasRestoredRef = useRef(false);
   const isApplyingRemoteChangeRef = useRef(false);
+  const hasRestoredLayoutRef = useRef(false);
+  const isApplyingRemoteLayoutChangeRef = useRef(false);
 
   useEffect(() => {
     void getDownloadRoot().then(setDownloadRootState);
+    void getSidebarLayout().then((layout) => {
+      setSidebarLayoutState(layout);
+      hasRestoredLayoutRef.current = true;
+    });
   }, []);
+
+  useEffect(() => {
+    const listener = (
+      changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+      areaName: string,
+    ) => {
+      if (areaName !== 'local') return;
+      if (!('bb_sidebar_layout' in changes)) return;
+      const change = changes['bb_sidebar_layout'];
+      if (!change?.newValue) return;
+      const newValue: unknown = change.newValue;
+      if (typeof newValue === 'string') {
+        const layout: SidebarLayout =
+          newValue === 'floating' ? 'floating' : 'rail';
+        isApplyingRemoteLayoutChangeRef.current = true;
+        setSidebarLayoutState(layout);
+        onLayoutChange?.(layout);
+      }
+    };
+    browser.storage.onChanged.addListener(listener);
+    return () => browser.storage.onChanged.removeListener(listener);
+  }, [onLayoutChange]);
 
   useEffect(() => {
     void storeRef.current.getCollapsed().then((collapsed) => {
@@ -302,6 +343,17 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
     }
     isApplyingRemoteChangeRef.current = false;
   }, [onCollapsedChange, state.collapsed]);
+
+  useEffect(() => {
+    onLayoutChange?.(sidebarLayout);
+    if (
+      hasRestoredLayoutRef.current &&
+      !isApplyingRemoteLayoutChangeRef.current
+    ) {
+      void setSidebarLayout(sidebarLayout).catch(reportFailure);
+    }
+    isApplyingRemoteLayoutChangeRef.current = false;
+  }, [onLayoutChange, sidebarLayout]);
 
   const refresh = useCallback(() => {
     void send<DownloadTask[]>({
@@ -827,6 +879,10 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
     void setDownloadRoot(downloadRoot).catch(reportFailure);
   };
 
+  const handleSidebarLayoutChange = (layout: SidebarLayout): void => {
+    setSidebarLayoutState(layout);
+  };
+
   const openChromeSettings = (): void => {
     void send<null>({
       v: 1,
@@ -865,6 +921,8 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
     });
   }, [isHome, state.courses, state.loading, state.tracked, syncTracked]);
 
+  const styles = getSidebarStyles(sidebarLayout);
+
   if (state.collapsed) {
     return (
       <button
@@ -878,7 +936,7 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
   }
 
   return (
-    <aside className="fixed top-4 right-4 flex h-[calc(100vh-2rem)] w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
+    <aside className={styles.asideClassName}>
       <header className="flex shrink-0 items-start gap-3 bg-slate-950 px-4 py-3 text-white">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-indigo-300">
@@ -1073,6 +1131,8 @@ export function Sidebar({ onCollapsedChange, stateStore }: SidebarProps) {
         onDownloadRootChange={handleDownloadRootChange}
         onDownloadRootCommit={handleDownloadRootCommit}
         onOpenChromeSettings={openChromeSettings}
+        sidebarLayout={sidebarLayout}
+        onSidebarLayoutChange={handleSidebarLayoutChange}
       />
     </aside>
   );
