@@ -29,4 +29,22 @@ export const buttonStyles = {
 
   linkSmallPrimary:
     'text-xs font-medium text-slate-900 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-400',
+
+  /**
+   * Focus ring for text inputs, matching the slate palette used in buttons.
+   */
+  inputFocus:
+    'focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500',
+
+  /**
+   * Segmented control button (inactive state).
+   * Use with active state classes for toggle groups.
+   */
+  segmentedInactive:
+    'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+
+  /**
+   * Segmented control button (active state).
+   */
+  segmentedActive: 'bg-slate-900 text-white',
 } as const;

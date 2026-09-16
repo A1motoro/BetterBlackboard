@@ -157,7 +157,7 @@ export function DownloadPanel({
                 }
               }}
               placeholder="BB"
-              className="min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className={`min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder-slate-400 ${buttonStyles.inputFocus}`}
             />
             <button
               type="button"
@@ -179,8 +179,8 @@ export function DownloadPanel({
               type="button"
               className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
                 sidebarLayout === 'rail'
-                  ? 'bg-slate-900 text-white'
-                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  ? buttonStyles.segmentedActive
+                  : buttonStyles.segmentedInactive
               }`}
               onClick={() => onSidebarLayoutChange('rail')}
             >
@@ -190,8 +190,8 @@ export function DownloadPanel({
               type="button"
               className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
                 sidebarLayout === 'floating'
-                  ? 'bg-slate-900 text-white'
-                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  ? buttonStyles.segmentedActive
+                  : buttonStyles.segmentedInactive
               }`}
               onClick={() => onSidebarLayoutChange('floating')}
             >
