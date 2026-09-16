@@ -106,11 +106,14 @@ export class PersistentDownloadQueue {
     return this.snapshot();
   }
 
-  async enqueue(inputs: DownloadTaskInput[]): Promise<EnqueueResult> {
+  async enqueue(
+    inputs: DownloadTaskInput[],
+    preserveBatchId?: number,
+  ): Promise<EnqueueResult> {
     await this.init();
 
     const now = Date.now();
-    const batchId = now;
+    const batchId = preserveBatchId ?? now;
     const known = new Set<string>();
     for (const task of this.tasks.values()) {
       if (task.status === 'canceled' || task.status === 'interrupted') continue;

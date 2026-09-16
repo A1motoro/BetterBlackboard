@@ -175,4 +175,40 @@ describe('DownloadPanel', () => {
 
     expect(screen.getByText(/已完成 2\/3 · 67%/)).toBeInTheDocument();
   });
+
+  it('重试后保留原批次，同批失败仍可见', () => {
+    const batchId = 100;
+    const task1 = {
+      ...task('interrupted', 'NETWORK_FAILED', 'task-1', batchId),
+      sourceFileName: 'File1.pdf',
+    };
+    const task2 = {
+      ...task('interrupted', 'SERVER_ERROR', 'task-2', batchId),
+      sourceFileName: 'File2.pdf',
+    };
+    const task3 = {
+      ...task('queued', undefined, 'task-3-retry', batchId),
+      sourceFileName: 'File1.pdf',
+    };
+
+    render(
+      <DownloadPanel
+        tasks={[task1, task2, task3]}
+        onCancelAll={vi.fn()}
+        onRetry={vi.fn()}
+        downloadRoot="BB"
+        onDownloadRootChange={vi.fn()}
+        onDownloadRootCommit={vi.fn()}
+        onOpenChromeSettings={vi.fn()}
+        sidebarLayout="rail"
+        onSidebarLayoutChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/已完成 0\/3 · 0%/)).toBeInTheDocument();
+    expect(screen.getByText('File1.pdf')).toBeInTheDocument();
+    expect(screen.getByText('File2.pdf')).toBeInTheDocument();
+    const retryButtons = screen.getAllByText('重试');
+    expect(retryButtons).toHaveLength(2);
+  });
 });

@@ -178,7 +178,10 @@ export default defineBackground(() => {
             return { ok: true, data };
           }
           case 'downloads.enqueue':
-            return { ok: true, data: await queue.enqueue(message.tasks) };
+            return {
+              ok: true,
+              data: await queue.enqueue(message.tasks, message.batchId),
+            };
           case 'downloads.cancel':
             return { ok: true, data: await queue.cancel(message.taskId) };
           case 'downloads.cancelAll':
