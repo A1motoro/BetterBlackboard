@@ -6,6 +6,7 @@ import {
   requestId,
   type ExtensionResponse,
 } from '../../infrastructure/messages';
+import { buttonStyles } from '../../ui/buttonStyles';
 
 interface ActiveTab {
   id: number;
@@ -97,7 +98,7 @@ export function Popup() {
   return (
     <main className="w-80 bg-white p-4 text-slate-900">
       <div className="mb-4 flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-sm font-bold text-white">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-sm font-bold text-white">
           BB
         </div>
         <div>
@@ -113,7 +114,7 @@ export function Popup() {
       <button
         type="button"
         disabled={!tab || busy}
-        className="w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+        className={`w-full rounded-xl ${buttonStyles.primaryLarge}`}
         onClick={enable}
       >
         {busy ? '正在打开…' : authorized ? '重新打开侧栏' : '授权并启用'}
