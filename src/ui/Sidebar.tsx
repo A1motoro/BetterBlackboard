@@ -289,10 +289,15 @@ export function Sidebar({
 
   const hasRestoredRef = useRef(false);
   const isApplyingRemoteChangeRef = useRef(false);
+  const hasRestoredLayoutRef = useRef(false);
+  const isApplyingRemoteLayoutChangeRef = useRef(false);
 
   useEffect(() => {
     void getDownloadRoot().then(setDownloadRootState);
-    void getSidebarLayout().then(setSidebarLayoutState);
+    void getSidebarLayout().then((layout) => {
+      setSidebarLayoutState(layout);
+      hasRestoredLayoutRef.current = true;
+    });
   }, []);
 
   useEffect(() => {
@@ -308,6 +313,7 @@ export function Sidebar({
       if (typeof newValue === 'string') {
         const layout: SidebarLayout =
           newValue === 'floating' ? 'floating' : 'rail';
+        isApplyingRemoteLayoutChangeRef.current = true;
         setSidebarLayoutState(layout);
         onLayoutChange?.(layout);
       }
@@ -337,6 +343,17 @@ export function Sidebar({
     }
     isApplyingRemoteChangeRef.current = false;
   }, [onCollapsedChange, state.collapsed]);
+
+  useEffect(() => {
+    onLayoutChange?.(sidebarLayout);
+    if (
+      hasRestoredLayoutRef.current &&
+      !isApplyingRemoteLayoutChangeRef.current
+    ) {
+      void setSidebarLayout(sidebarLayout).catch(reportFailure);
+    }
+    isApplyingRemoteLayoutChangeRef.current = false;
+  }, [onLayoutChange, sidebarLayout]);
 
   const refresh = useCallback(() => {
     void send<DownloadTask[]>({
@@ -864,8 +881,6 @@ export function Sidebar({
 
   const handleSidebarLayoutChange = (layout: SidebarLayout): void => {
     setSidebarLayoutState(layout);
-    void setSidebarLayout(layout).catch(reportFailure);
-    onLayoutChange?.(layout);
   };
 
   const openChromeSettings = (): void => {
