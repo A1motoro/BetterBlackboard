@@ -43,10 +43,7 @@ export function CourseTracker({
   return (
     <section className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-slate-200 px-4 py-3">
-        <p className="text-xs leading-5 text-slate-500">
-          勾选课程加入跟踪列表。勾选后不会立即下载，点击「立即同步」开始下载。
-        </p>
-        <div className="mt-2 space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -58,7 +55,7 @@ export function CourseTracker({
             </button>
             {syncing && syncRoundPk1s.size > 0 && (
               <span className="text-xs text-slate-500">
-                本轮 {syncRoundPk1s.size} 门 · 可继续勾选，下轮再生效
+                本轮 {syncRoundPk1s.size} 门
               </span>
             )}
           </div>
@@ -102,7 +99,7 @@ export function CourseTracker({
                 busyPk1 === course.pk1 || (syncing && isInSyncRound);
               return (
                 <li key={course.pk1}>
-                  <div className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100">
+                  <div className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-100">
                     <label className="flex flex-1 cursor-pointer items-start gap-2">
                       <input
                         type="checkbox"
@@ -113,7 +110,7 @@ export function CourseTracker({
                           onToggle(course, event.target.checked)
                         }
                       />
-                      <span className="min-w-0 flex-1 truncate text-sm text-slate-800">
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">
                         {course.name}
                       </span>
                     </label>
@@ -128,7 +125,7 @@ export function CourseTracker({
                           : '下载整课内容'
                       }
                     >
-                      ⬇️
+                      下载
                     </button>
                   </div>
                 </li>

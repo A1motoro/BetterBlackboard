@@ -921,16 +921,25 @@ export function Sidebar({
     return (
       <button
         type="button"
-        className="fixed top-24 right-0 rounded-l-xl bg-slate-900 px-3 py-3 text-sm font-semibold text-white shadow-xl hover:bg-slate-800"
+        className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-md bg-slate-900 px-2 py-7 text-xs font-semibold text-white shadow-xl hover:bg-slate-800 z-[9999]"
         onClick={() => dispatch({ type: 'collapse', value: false })}
+        aria-label="展开侧栏"
       >
-        BB 下载
+        拉出
       </button>
     );
   }
 
   return (
     <aside className={styles.asideClassName}>
+      <button
+        type="button"
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full rounded-l-md bg-slate-900 px-2 py-7 text-xs font-semibold text-white shadow-xl hover:bg-slate-800 z-[9999]"
+        onClick={() => dispatch({ type: 'collapse', value: true })}
+        aria-label="收起侧栏"
+      >
+        缩回
+      </button>
       <header className="flex shrink-0 items-start gap-3 bg-slate-950 px-4 py-3 text-white">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-slate-300">
@@ -940,14 +949,6 @@ export function Sidebar({
             {context ? (state.course?.name ?? '课程附件') : '跟踪课程'}
           </h1>
         </div>
-        <button
-          type="button"
-          aria-label="收起侧栏"
-          className="rounded px-2 py-1 text-slate-300 hover:bg-white/10 hover:text-white"
-          onClick={() => dispatch({ type: 'collapse', value: true })}
-        >
-          —
-        </button>
       </header>
 
       {state.notice && (
@@ -983,7 +984,7 @@ export function Sidebar({
 
       {state.loadError && (
         <div className="min-h-0 flex-1 p-4">
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {state.loadError}
           </div>
         </div>
@@ -1056,7 +1057,7 @@ export function Sidebar({
                 toggleTrack(course, event.target.checked);
               }}
             />
-            跟踪本课，可通过主菜单同步下载新文件
+            跟踪本课
           </label>
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <button

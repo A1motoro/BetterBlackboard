@@ -45,7 +45,7 @@ function DDLItem({ assignment }: DDLItemProps) {
     <div className="p-3 hover:bg-gray-50">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-gray-900 truncate">
+          <h4 className="text-sm font-semibold text-gray-900 truncate">
             {assignment.title}
           </h4>
           <p className="text-xs text-gray-500 truncate mt-0.5">
@@ -155,7 +155,7 @@ export function DDLSection({
           <div className="mt-2 text-xs text-gray-600">
             <details className="cursor-pointer">
               <summary className="hover:text-gray-900">
-                已过滤非作业项目 (点击查看详情)
+                已过滤非作业项目
               </summary>
               <div className="mt-1 ml-4 space-y-0.5">
                 {filterCounts.Course > 0 && (
