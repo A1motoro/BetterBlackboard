@@ -62,7 +62,7 @@ function NodeRow({
 
   return (
     <li className="space-y-1">
-      <div className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-100">
+      <div className="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-100">
         <SelectionCheckbox
           checked={checked}
           indeterminate={indeterminate}
@@ -86,7 +86,7 @@ function NodeRow({
         return (
           <label
             key={key}
-            className="ml-8 flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50"
+            className="ml-8 flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50"
           >
             <SelectionCheckbox
               checked={selected.has(key)}
