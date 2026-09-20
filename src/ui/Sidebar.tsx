@@ -931,203 +931,213 @@ export function Sidebar({
   }
 
   return (
-    <aside className={styles.asideClassName}>
+    <>
       <button
         type="button"
-        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full rounded-l-md bg-slate-900 px-2 py-7 text-xs font-semibold text-white shadow-xl hover:bg-slate-800 z-[9999]"
+        className="fixed left-[calc(100vw-380px-28px)] top-1/2 -translate-y-1/2 rounded-l-md bg-slate-900 px-2 py-7 text-xs font-semibold text-white shadow-xl hover:bg-slate-800 z-[9999]"
+        style={{
+          left:
+            sidebarLayout === 'floating'
+              ? 'calc(100vw - 380px - 4rem - 28px)'
+              : 'calc(100vw - 380px - 28px)',
+        }}
         onClick={() => dispatch({ type: 'collapse', value: true })}
         aria-label="收起侧栏"
       >
         缩回
       </button>
-      <header className="flex shrink-0 items-start gap-3 bg-slate-950 px-4 py-3 text-white">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-slate-300">
-            Better Blackboard
-          </p>
-          <h1 className="truncate text-sm font-semibold">
-            {context ? (state.course?.name ?? '课程附件') : '跟踪课程'}
-          </h1>
-        </div>
-      </header>
+      <aside className={styles.asideClassName}>
+        <header className="flex shrink-0 items-start gap-3 bg-slate-950 px-4 py-3 text-white">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-slate-300">
+              Better Blackboard
+            </p>
+            <h1 className="truncate text-sm font-semibold">
+              {context ? (state.course?.name ?? '课程附件') : '跟踪课程'}
+            </h1>
+          </div>
+        </header>
 
-      {state.notice && (
-        <div
-          role="status"
-          className={`flex shrink-0 items-start gap-2 px-4 py-2 text-xs ${
-            state.notice.tone === 'error'
-              ? 'bg-red-50 text-red-800'
-              : 'bg-slate-50 text-slate-800'
-          }`}
-        >
-          <span className="min-w-0 flex-1 break-words">
-            {state.notice.message}
-          </span>
-          <button
-            type="button"
-            aria-label="关闭提示"
-            className="shrink-0 opacity-60 hover:opacity-100"
-            onClick={() => dispatch({ type: 'notice', notice: null })}
+        {state.notice && (
+          <div
+            role="status"
+            className={`flex shrink-0 items-start gap-2 px-4 py-2 text-xs ${
+              state.notice.tone === 'error'
+                ? 'bg-red-50 text-red-800'
+                : 'bg-slate-50 text-slate-800'
+            }`}
           >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {state.loading && (
-        <div className="min-h-0 flex-1 space-y-3 p-4">
-          <div className="h-4 animate-pulse rounded bg-slate-200" />
-          <div className="h-4 w-4/5 animate-pulse rounded bg-slate-200" />
-          <div className="h-4 w-3/5 animate-pulse rounded bg-slate-200" />
-        </div>
-      )}
-
-      {state.loadError && (
-        <div className="min-h-0 flex-1 p-4">
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-            {state.loadError}
-          </div>
-        </div>
-      )}
-
-      {!state.loading && !state.loadError && !context && (
-        <>
-          <div className="flex shrink-0 border-b border-slate-200">
-            <button
-              type="button"
-              className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                state.viewMode === 'files'
-                  ? 'border-b-2 border-slate-900 text-slate-900'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              onClick={() => dispatch({ type: 'setViewMode', mode: 'files' })}
-            >
-              课程跟踪
-            </button>
-            <button
-              type="button"
-              className={`flex-1 px-4 py-2.5 text-sm font-medium ${
-                state.viewMode === 'ddl'
-                  ? 'border-b-2 border-slate-900 text-slate-900'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              onClick={() => dispatch({ type: 'setViewMode', mode: 'ddl' })}
-            >
-              DDL聚合
-            </button>
-          </div>
-
-          {state.viewMode === 'files' ? (
-            <CourseTracker
-              courses={state.courses}
-              tracked={state.tracked}
-              busyPk1={state.busyPk1}
-              syncing={state.syncing}
-              syncRoundPk1s={state.syncRoundPk1s}
-              onToggle={toggleTrack}
-              onSyncNow={() => syncTracked(state.courses)}
-              onDownloadWholeCourse={downloadWholeCourse}
-            />
-          ) : (
-            <div className="flex-1 overflow-hidden">
-              <DDLSection
-                assignments={state.ddlAssignments}
-                loading={state.ddlLoading}
-                onRefresh={loadDDL}
-                lastRefresh={state.ddlLastRefresh}
-                filterCounts={state.ddlFilterCounts}
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      {!state.loading && !state.loadError && context && (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <label className="flex shrink-0 cursor-pointer items-center gap-2 border-b border-slate-200 px-4 py-2.5 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-slate-900"
-              checked={state.tracked.has(context.coursePk1)}
-              onChange={(event) => {
-                const course =
-                  state.course ??
-                  state.courses.find((item) => item.pk1 === context.coursePk1);
-                if (!course) return;
-                toggleTrack(course, event.target.checked);
-              }}
-            />
-            跟踪本课
-          </label>
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5">
-            <button
-              type="button"
-              className="text-xs font-medium text-slate-900 hover:text-slate-700"
-              onClick={() =>
-                dispatch({
-                  type: 'toggle',
-                  keys: allKeys,
-                  selected: !allSelected,
-                })
-              }
-            >
-              {allSelected ? '取消全选' : `全选 ${allKeys.length} 个文件`}
-            </button>
-            <span className="text-xs text-slate-500">
-              已选 {state.selected.size}
+            <span className="min-w-0 flex-1 break-words">
+              {state.notice.message}
             </span>
+            <button
+              type="button"
+              aria-label="关闭提示"
+              className="shrink-0 opacity-60 hover:opacity-100"
+              onClick={() => dispatch({ type: 'notice', notice: null })}
+            >
+              ✕
+            </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-auto px-3 py-3">
-            {state.nodes.length > 0 ? (
-              <ContentTree
-                nodes={state.nodes}
-                keyIndex={keyIndex}
-                selected={state.selected}
-                onToggle={(keys, selected) =>
-                  dispatch({ type: 'toggle', keys, selected })
-                }
-              />
-            ) : (
-              <p className="py-8 text-center text-sm text-slate-500">
-                当前内容区没有可显示的项目
-              </p>
-            )}
+        )}
+
+        {state.loading && (
+          <div className="min-h-0 flex-1 space-y-3 p-4">
+            <div className="h-4 animate-pulse rounded bg-slate-200" />
+            <div className="h-4 w-4/5 animate-pulse rounded bg-slate-200" />
+            <div className="h-4 w-3/5 animate-pulse rounded bg-slate-200" />
           </div>
-          {state.showingDiff && state.diffPreview ? (
-            <div className="shrink-0 border-t border-slate-200 p-3">
-              <DiffPreviewComponent
-                preview={state.diffPreview}
-                onDownload={startDownloadWithDiff}
-                onCancel={() => dispatch({ type: 'hideDiff' })}
-                onForceFullSync={forceFullSync}
-              />
+        )}
+
+        {state.loadError && (
+          <div className="min-h-0 flex-1 p-4">
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              {state.loadError}
             </div>
-          ) : (
-            <div className="shrink-0 border-t border-slate-200 p-3">
+          </div>
+        )}
+
+        {!state.loading && !state.loadError && !context && (
+          <>
+            <div className="flex shrink-0 border-b border-slate-200">
               <button
                 type="button"
-                disabled={state.selected.size === 0}
-                className={`w-full ${buttonStyles.primaryLarge}`}
-                onClick={startDownload}
+                className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                  state.viewMode === 'files'
+                    ? 'border-b-2 border-slate-900 text-slate-900'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                onClick={() => dispatch({ type: 'setViewMode', mode: 'files' })}
               >
-                增量下载
+                课程跟踪
+              </button>
+              <button
+                type="button"
+                className={`flex-1 px-4 py-2.5 text-sm font-medium ${
+                  state.viewMode === 'ddl'
+                    ? 'border-b-2 border-slate-900 text-slate-900'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                onClick={() => dispatch({ type: 'setViewMode', mode: 'ddl' })}
+              >
+                DDL聚合
               </button>
             </div>
-          )}
-        </div>
-      )}
 
-      <DownloadPanel
-        tasks={currentTasks}
-        onCancelAll={cancelAllDownloads}
-        onRetry={retryDownload}
-        downloadRoot={downloadRoot}
-        onDownloadRootChange={handleDownloadRootChange}
-        onDownloadRootCommit={handleDownloadRootCommit}
-        onOpenChromeSettings={openChromeSettings}
-        sidebarLayout={sidebarLayout}
-        onSidebarLayoutChange={handleSidebarLayoutChange}
-      />
-    </aside>
+            {state.viewMode === 'files' ? (
+              <CourseTracker
+                courses={state.courses}
+                tracked={state.tracked}
+                busyPk1={state.busyPk1}
+                syncing={state.syncing}
+                syncRoundPk1s={state.syncRoundPk1s}
+                onToggle={toggleTrack}
+                onSyncNow={() => syncTracked(state.courses)}
+                onDownloadWholeCourse={downloadWholeCourse}
+              />
+            ) : (
+              <div className="flex-1 overflow-hidden">
+                <DDLSection
+                  assignments={state.ddlAssignments}
+                  loading={state.ddlLoading}
+                  onRefresh={loadDDL}
+                  lastRefresh={state.ddlLastRefresh}
+                  filterCounts={state.ddlFilterCounts}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {!state.loading && !state.loadError && context && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 border-b border-slate-200 px-4 py-2.5 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-slate-900"
+                checked={state.tracked.has(context.coursePk1)}
+                onChange={(event) => {
+                  const course =
+                    state.course ??
+                    state.courses.find(
+                      (item) => item.pk1 === context.coursePk1,
+                    );
+                  if (!course) return;
+                  toggleTrack(course, event.target.checked);
+                }}
+              />
+              跟踪本课
+            </label>
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2.5">
+              <button
+                type="button"
+                className="text-xs font-medium text-slate-900 hover:text-slate-700"
+                onClick={() =>
+                  dispatch({
+                    type: 'toggle',
+                    keys: allKeys,
+                    selected: !allSelected,
+                  })
+                }
+              >
+                {allSelected ? '取消全选' : `全选 ${allKeys.length} 个文件`}
+              </button>
+              <span className="text-xs text-slate-500">
+                已选 {state.selected.size}
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto px-3 py-3">
+              {state.nodes.length > 0 ? (
+                <ContentTree
+                  nodes={state.nodes}
+                  keyIndex={keyIndex}
+                  selected={state.selected}
+                  onToggle={(keys, selected) =>
+                    dispatch({ type: 'toggle', keys, selected })
+                  }
+                />
+              ) : (
+                <p className="py-8 text-center text-sm text-slate-500">
+                  当前内容区没有可显示的项目
+                </p>
+              )}
+            </div>
+            {state.showingDiff && state.diffPreview ? (
+              <div className="shrink-0 border-t border-slate-200 p-3">
+                <DiffPreviewComponent
+                  preview={state.diffPreview}
+                  onDownload={startDownloadWithDiff}
+                  onCancel={() => dispatch({ type: 'hideDiff' })}
+                  onForceFullSync={forceFullSync}
+                />
+              </div>
+            ) : (
+              <div className="shrink-0 border-t border-slate-200 p-3">
+                <button
+                  type="button"
+                  disabled={state.selected.size === 0}
+                  className={`w-full ${buttonStyles.primaryLarge}`}
+                  onClick={startDownload}
+                >
+                  增量下载
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DownloadPanel
+          tasks={currentTasks}
+          onCancelAll={cancelAllDownloads}
+          onRetry={retryDownload}
+          downloadRoot={downloadRoot}
+          onDownloadRootChange={handleDownloadRootChange}
+          onDownloadRootCommit={handleDownloadRootCommit}
+          onOpenChromeSettings={openChromeSettings}
+          sidebarLayout={sidebarLayout}
+          onSidebarLayoutChange={handleSidebarLayoutChange}
+        />
+      </aside>
+    </>
   );
 }
