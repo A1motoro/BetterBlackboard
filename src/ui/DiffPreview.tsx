@@ -19,13 +19,10 @@ export function DiffPreviewComponent({
 
   if (summary.totalDownloadable === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <div className="rounded-md border border-slate-200 bg-white p-4">
         <h3 className="mb-2 text-sm font-semibold text-slate-800">
           所有文件已是最新
         </h3>
-        <p className="text-xs text-slate-600">
-          与上次下载相比没有新增或修改的文件。
-        </p>
         <div className="mt-3 flex gap-2">
           <button
             type="button"
@@ -47,7 +44,7 @@ export function DiffPreviewComponent({
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className="rounded-md border border-slate-200 bg-white p-4">
       <h3 className="mb-2 text-sm font-semibold text-slate-800">
         发现 {summary.totalDownloadable} 个需要下载的文件
       </h3>

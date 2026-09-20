@@ -171,10 +171,10 @@ describe('同步轮次冻结 UX', () => {
       const syncRoundPk1s = new Set(['_course1_1', '_course2_1', '_course3_1']);
 
       const shouldShowHelper = syncing && syncRoundPk1s.size > 0;
-      const helperText = `本轮 ${syncRoundPk1s.size} 门 · 可继续勾选，下轮再生效`;
+      const helperText = `本轮 ${syncRoundPk1s.size} 门`;
 
       expect(shouldShowHelper).toBe(true);
-      expect(helperText).toBe('本轮 3 门 · 可继续勾选，下轮再生效');
+      expect(helperText).toBe('本轮 3 门');
     });
 
     it('没有同步时不应该显示辅助文本', () => {

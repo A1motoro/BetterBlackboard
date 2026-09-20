@@ -70,7 +70,7 @@ export function DownloadPanel({
             </div>
             <div className="space-y-2">
               {hasActiveTasks && (
-                <div className="rounded-lg bg-slate-50 p-2.5">
+                <div className="rounded-md bg-slate-50 p-2.5">
                   <p className="text-xs font-medium text-slate-800">
                     已完成 {completedCount}/{totalCount} · {progressPercent}%
                   </p>
@@ -89,7 +89,7 @@ export function DownloadPanel({
                     return (
                       <article
                         key={task.taskId}
-                        className="rounded-lg bg-red-50 p-2.5"
+                        className="rounded-md bg-red-50 p-2.5"
                       >
                         <div className="flex gap-2">
                           <div className="min-w-0 flex-1">
@@ -119,7 +119,7 @@ export function DownloadPanel({
           </>
         )}
 
-        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
           <h3 className="text-xs font-semibold text-slate-700">下载设置</h3>
           <p className="text-[11px] text-slate-600">
             文件保存在 Chrome 默认下载目录下的相对路径
@@ -137,7 +137,7 @@ export function DownloadPanel({
                 }
               }}
               placeholder="BB"
-              className={`min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder-slate-400 ${buttonStyles.inputFocus}`}
+              className={`min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 placeholder-slate-400 ${buttonStyles.inputFocus}`}
             />
             <button
               type="button"
@@ -147,12 +147,9 @@ export function DownloadPanel({
               更改 Chrome 下载目录
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">
-            修改相对文件夹根目录（仅对新下载生效）
-          </p>
         </div>
 
-        <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
           <h3 className="text-xs font-semibold text-slate-700">侧栏外观</h3>
           <div className="flex gap-2">
             <button
